@@ -1,0 +1,56 @@
+import Foundation
+import SwiftUI
+
+enum AppRoute: String, CaseIterable, Identifiable {
+    case record
+    case library
+    case settings
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .record: "录制"
+        case .library: "项目库"
+        case .settings: "设置"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .record: "record.circle"
+        case .library: "square.stack.3d.up"
+        case .settings: "gearshape"
+        }
+    }
+}
+
+@MainActor
+final class AppModel: ObservableObject {
+    @Published var route: AppRoute = .record
+    @Published var activeEditor: EditorSession?
+    @Published var alertMessage: String?
+
+    let projectStore: ProjectStore
+    let recorder: ScreenRecorder
+
+    init() {
+        projectStore = ProjectStore()
+        recorder = ScreenRecorder()
+    }
+
+    func openProject(_ project: ProjectDocument) {
+        activeEditor = EditorSession(project: project, store: projectStore)
+        route = .library
+    }
+
+    func finishRecording(at url: URL) async {
+        do {
+            let project = try await projectStore.importRecording(at: url)
+            activeEditor = EditorSession(project: project, store: projectStore)
+            route = .library
+        } catch {
+            alertMessage = "录制已完成，但创建项目失败：\(error.localizedDescription)"
+        }
+    }
+}

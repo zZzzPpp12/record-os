@@ -1,0 +1,27 @@
+name: RecordOS
+options:
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    PRODUCT_BUNDLE_IDENTIFIER: com.recordos.app
+    PRODUCT_NAME: RecordOS
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    GENERATE_INFOPLIST_FILE: YES
+    INFOPLIST_KEY_NSScreenCaptureUsageDescription: "RecordOS needs screen recording access to capture the display you choose."
+    INFOPLIST_KEY_NSPrincipalClass: NSApplication
+    SWIFT_STRICT_CONCURRENCY: minimal
+targets:
+  RecordOS:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        ENABLE_APP_SANDBOX: NO
+        PRODUCT_BUNDLE_IDENTIFIER: com.recordos.app
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks"

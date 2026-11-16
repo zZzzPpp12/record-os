@@ -1,0 +1,379 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0AC631CF493F9A7B82C68870 /* RecordOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85545B1376BF2BCFE51379BB /* RecordOSApp.swift */; };
+		172D3448FA9BD842FF717287 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B723EF8CECAC246C1177047 /* SharedViews.swift */; };
+		1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEC2594C573BB74710A0047 /* ProjectDocument.swift */; };
+		6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD94AA31D19B8A2CF785F26E /* RecorderView.swift */; };
+		89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */; };
+		9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F98D276E208AA60D685CEE /* EditorView.swift */; };
+		A8473E299922762047A956E7 /* EditorSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12AA1DADF558F6830733605F /* EditorSession.swift */; };
+		C697600BA3B531A6A4FF0ED2 /* AppShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477F98AC3C896478EAC72F22 /* AppShellView.swift */; };
+		C7C7D9EAC691FC83DB8F1FD9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1D9364E6627B9187CDBB68 /* SettingsView.swift */; };
+		CDA77FB13F0CCC20860EE5A1 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 105B536A788528B195ED17D0 /* ScreenRecorder.swift */; };
+		E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CD78766D8E214D4E481F623 /* LibraryView.swift */; };
+		E95C2029EF32289D36E15AA7 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B07153BA170CC8213CEF43 /* AppModel.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		105B536A788528B195ED17D0 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
+		12AA1DADF558F6830733605F /* EditorSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorSession.swift; sourceTree = "<group>"; };
+		1AEC2594C573BB74710A0047 /* ProjectDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDocument.swift; sourceTree = "<group>"; };
+		28B07153BA170CC8213CEF43 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		477F98AC3C896478EAC72F22 /* AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellView.swift; sourceTree = "<group>"; };
+		47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStore.swift; sourceTree = "<group>"; };
+		5CD78766D8E214D4E481F623 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		6B1D9364E6627B9187CDBB68 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7B1FA1436828523002CB108F /* RecordOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RecordOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B723EF8CECAC246C1177047 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
+		85545B1376BF2BCFE51379BB /* RecordOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordOSApp.swift; sourceTree = "<group>"; };
+		AD94AA31D19B8A2CF785F26E /* RecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderView.swift; sourceTree = "<group>"; };
+		B0F98D276E208AA60D685CEE /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		47567D8C447B0D69CD745265 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				4B3E696F985A979836445FC0 /* RecordOS */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		4B3E696F985A979836445FC0 /* RecordOS */ = {
+			isa = PBXGroup;
+			children = (
+				63A0D430017898A2E0A03351 /* App */,
+				7F64528F4F32C3775CF386FA /* Capture */,
+				D171615B9A252F3D956ECC79 /* Core */,
+				8D4650A3095770275326A08A /* Editing */,
+				BE193246B321DD25432004E0 /* UI */,
+			);
+			path = RecordOS;
+			sourceTree = "<group>";
+		};
+		63A0D430017898A2E0A03351 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				28B07153BA170CC8213CEF43 /* AppModel.swift */,
+				85545B1376BF2BCFE51379BB /* RecordOSApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		7F64528F4F32C3775CF386FA /* Capture */ = {
+			isa = PBXGroup;
+			children = (
+				105B536A788528B195ED17D0 /* ScreenRecorder.swift */,
+			);
+			path = Capture;
+			sourceTree = "<group>";
+		};
+		8C5BBFEECD89188F5303B765 = {
+			isa = PBXGroup;
+			children = (
+				47567D8C447B0D69CD745265 /* Sources */,
+				CA4111CE126EF4D314FC98A0 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		8D4650A3095770275326A08A /* Editing */ = {
+			isa = PBXGroup;
+			children = (
+				12AA1DADF558F6830733605F /* EditorSession.swift */,
+			);
+			path = Editing;
+			sourceTree = "<group>";
+		};
+		BE193246B321DD25432004E0 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				477F98AC3C896478EAC72F22 /* AppShellView.swift */,
+				B0F98D276E208AA60D685CEE /* EditorView.swift */,
+				5CD78766D8E214D4E481F623 /* LibraryView.swift */,
+				AD94AA31D19B8A2CF785F26E /* RecorderView.swift */,
+				6B1D9364E6627B9187CDBB68 /* SettingsView.swift */,
+				7B723EF8CECAC246C1177047 /* SharedViews.swift */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		CA4111CE126EF4D314FC98A0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7B1FA1436828523002CB108F /* RecordOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D171615B9A252F3D956ECC79 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				1AEC2594C573BB74710A0047 /* ProjectDocument.swift */,
+				47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A1D33CDA32BD269CFBD95AF1 /* RecordOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A4713D6F39AC8E691FA5C07E /* Build configuration list for PBXNativeTarget "RecordOS" */;
+			buildPhases = (
+				8147E48EE6DA2F71872B2FBE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = RecordOS;
+			packageProductDependencies = (
+			);
+			productName = RecordOS;
+			productReference = 7B1FA1436828523002CB108F /* RecordOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		78B81278571693A64787ACD0 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					A1D33CDA32BD269CFBD95AF1 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = BEFF2A89D5CF8904CFED622B /* Build configuration list for PBXProject "RecordOS" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8C5BBFEECD89188F5303B765;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = CA4111CE126EF4D314FC98A0 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A1D33CDA32BD269CFBD95AF1 /* RecordOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		8147E48EE6DA2F71872B2FBE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E95C2029EF32289D36E15AA7 /* AppModel.swift in Sources */,
+				C697600BA3B531A6A4FF0ED2 /* AppShellView.swift in Sources */,
+				A8473E299922762047A956E7 /* EditorSession.swift in Sources */,
+				9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */,
+				E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */,
+				1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */,
+				89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */,
+				0AC631CF493F9A7B82C68870 /* RecordOSApp.swift in Sources */,
+				6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */,
+				CDA77FB13F0CCC20860EE5A1 /* ScreenRecorder.swift in Sources */,
+				C7C7D9EAC691FC83DB8F1FD9 /* SettingsView.swift in Sources */,
+				172D3448FA9BD842FF717287 /* SharedViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		0B715ABAB1DE641B8B8C5545 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = NO;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.recordos.app;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		5B664517294375B51686D192 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "RecordOS needs screen recording access to capture the display you choose.";
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.recordos.app;
+				PRODUCT_NAME = RecordOS;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		9B8FACF5F10F5DEF234B415D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_APP_SANDBOX = NO;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/../Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.recordos.app;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		E7D50BFB124817B2F1DF9DB4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "RecordOS needs screen recording access to capture the display you choose.";
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.recordos.app;
+				PRODUCT_NAME = RecordOS;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_STRICT_CONCURRENCY = minimal;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A4713D6F39AC8E691FA5C07E /* Build configuration list for PBXNativeTarget "RecordOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9B8FACF5F10F5DEF234B415D /* Debug */,
+				0B715ABAB1DE641B8B8C5545 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BEFF2A89D5CF8904CFED622B /* Build configuration list for PBXProject "RecordOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E7D50BFB124817B2F1DF9DB4 /* Debug */,
+				5B664517294375B51686D192 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 78B81278571693A64787ACD0 /* Project object */;
+}
