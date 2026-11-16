@@ -12,11 +12,14 @@
 		1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEC2594C573BB74710A0047 /* ProjectDocument.swift */; };
 		6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD94AA31D19B8A2CF785F26E /* RecorderView.swift */; };
 		89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */; };
+		98C0246146054D0F181016B4 /* NativePlayerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22AA48D947F873D00E7CB1EB /* NativePlayerSurface.swift */; };
 		9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F98D276E208AA60D685CEE /* EditorView.swift */; };
 		A8473E299922762047A956E7 /* EditorSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12AA1DADF558F6830733605F /* EditorSession.swift */; };
 		C697600BA3B531A6A4FF0ED2 /* AppShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 477F98AC3C896478EAC72F22 /* AppShellView.swift */; };
 		C7C7D9EAC691FC83DB8F1FD9 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B1D9364E6627B9187CDBB68 /* SettingsView.swift */; };
 		CDA77FB13F0CCC20860EE5A1 /* ScreenRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 105B536A788528B195ED17D0 /* ScreenRecorder.swift */; };
+		D8D5A984D8846EDF9132B2C5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2BB80845DA3D2BF874ED9FFB /* Assets.xcassets */; };
+		DFD931D8717112B126C7723D /* ProjectPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E418CAC8AACC86D87130A95 /* ProjectPreviewView.swift */; };
 		E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CD78766D8E214D4E481F623 /* LibraryView.swift */; };
 		E95C2029EF32289D36E15AA7 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28B07153BA170CC8213CEF43 /* AppModel.swift */; };
 /* End PBXBuildFile section */
@@ -25,11 +28,14 @@
 		105B536A788528B195ED17D0 /* ScreenRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenRecorder.swift; sourceTree = "<group>"; };
 		12AA1DADF558F6830733605F /* EditorSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorSession.swift; sourceTree = "<group>"; };
 		1AEC2594C573BB74710A0047 /* ProjectDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectDocument.swift; sourceTree = "<group>"; };
+		22AA48D947F873D00E7CB1EB /* NativePlayerSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativePlayerSurface.swift; sourceTree = "<group>"; };
 		28B07153BA170CC8213CEF43 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		2BB80845DA3D2BF874ED9FFB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		477F98AC3C896478EAC72F22 /* AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellView.swift; sourceTree = "<group>"; };
 		47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectStore.swift; sourceTree = "<group>"; };
 		5CD78766D8E214D4E481F623 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		6B1D9364E6627B9187CDBB68 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		6E418CAC8AACC86D87130A95 /* ProjectPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPreviewView.swift; sourceTree = "<group>"; };
 		7B1FA1436828523002CB108F /* RecordOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RecordOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B723EF8CECAC246C1177047 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
 		85545B1376BF2BCFE51379BB /* RecordOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordOSApp.swift; sourceTree = "<group>"; };
@@ -49,6 +55,7 @@
 		4B3E696F985A979836445FC0 /* RecordOS */ = {
 			isa = PBXGroup;
 			children = (
+				2BB80845DA3D2BF874ED9FFB /* Assets.xcassets */,
 				63A0D430017898A2E0A03351 /* App */,
 				7F64528F4F32C3775CF386FA /* Capture */,
 				D171615B9A252F3D956ECC79 /* Core */,
@@ -97,6 +104,8 @@
 				477F98AC3C896478EAC72F22 /* AppShellView.swift */,
 				B0F98D276E208AA60D685CEE /* EditorView.swift */,
 				5CD78766D8E214D4E481F623 /* LibraryView.swift */,
+				22AA48D947F873D00E7CB1EB /* NativePlayerSurface.swift */,
+				6E418CAC8AACC86D87130A95 /* ProjectPreviewView.swift */,
 				AD94AA31D19B8A2CF785F26E /* RecorderView.swift */,
 				6B1D9364E6627B9187CDBB68 /* SettingsView.swift */,
 				7B723EF8CECAC246C1177047 /* SharedViews.swift */,
@@ -129,6 +138,7 @@
 			buildConfigurationList = A4713D6F39AC8E691FA5C07E /* Build configuration list for PBXNativeTarget "RecordOS" */;
 			buildPhases = (
 				8147E48EE6DA2F71872B2FBE /* Sources */,
+				74E0256EB05631E455A17184 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -174,6 +184,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		74E0256EB05631E455A17184 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D8D5A984D8846EDF9132B2C5 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		8147E48EE6DA2F71872B2FBE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -184,7 +205,9 @@
 				A8473E299922762047A956E7 /* EditorSession.swift in Sources */,
 				9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */,
 				E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */,
+				98C0246146054D0F181016B4 /* NativePlayerSurface.swift in Sources */,
 				1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */,
+				DFD931D8717112B126C7723D /* ProjectPreviewView.swift in Sources */,
 				89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */,
 				0AC631CF493F9A7B82C68870 /* RecordOSApp.swift in Sources */,
 				6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */,

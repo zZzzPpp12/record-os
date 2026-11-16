@@ -39,15 +39,15 @@ final class AppModel: ObservableObject {
         recorder = ScreenRecorder()
     }
 
-    func openProject(_ project: ProjectDocument) {
+    func openEditor(_ project: ProjectDocument) {
         activeEditor = EditorSession(project: project, store: projectStore)
         route = .library
     }
 
     func finishRecording(at url: URL) async {
         do {
-            let project = try await projectStore.importRecording(at: url)
-            activeEditor = EditorSession(project: project, store: projectStore)
+            _ = try await projectStore.importRecording(at: url)
+            activeEditor = nil
             route = .library
         } catch {
             alertMessage = "录制已完成，但创建项目失败：\(error.localizedDescription)"
