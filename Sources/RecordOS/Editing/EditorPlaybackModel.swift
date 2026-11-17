@@ -15,9 +15,14 @@ final class EditorPlaybackModel: ObservableObject {
     private var endObserver: NSObjectProtocol?
     private var generation = 0
     private var observersInstalled = false
+    private var playbackRange: ClosedRange<Double>?
 
     init() {
         installObserversIfNeeded()
+    }
+
+    func setPlaybackRange(_ range: ClosedRange<Double>?) {
+        playbackRange = range
     }
 
     func teardown() {
@@ -43,9 +48,16 @@ final class EditorPlaybackModel: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self, !self.isScrubbing else { return }
                 let seconds = time.seconds
-                if seconds.isFinite {
-                    self.currentTime = max(0, seconds)
+                guard seconds.isFinite else { return }
+                if let limit = self.playbackRange,
+                   self.isPlaying,
+                   seconds >= limit.upperBound - 0.02 {
+                    self.player.pause()
+                    self.isPlaying = false
+                    self.currentTime = limit.upperBound
+                    return
                 }
+                self.currentTime = max(0, seconds)
             }
         }
 
@@ -107,12 +119,16 @@ final class EditorPlaybackModel: ObservableObject {
     func togglePlayback() {
         if isPlaying {
             pause()
-        } else {
-            if duration > 0, currentTime >= duration - 0.05 {
-                seek(to: 0)
-            }
-            play()
+            return
         }
+        if let limit = playbackRange {
+            if currentTime < limit.lowerBound - 0.05 || currentTime >= limit.upperBound - 0.05 {
+                seek(to: limit.lowerBound)
+            }
+        } else if duration > 0, currentTime >= duration - 0.05 {
+            seek(to: 0)
+        }
+        play()
     }
 
     func pause() {
@@ -122,6 +138,9 @@ final class EditorPlaybackModel: ObservableObject {
 
     func play() {
         guard hasContent else { return }
+        if let limit = playbackRange, currentTime < limit.lowerBound - 0.05 {
+            seek(to: limit.lowerBound)
+        }
         player.play()
         isPlaying = true
     }

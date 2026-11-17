@@ -24,6 +24,9 @@ struct EditorView: View {
         .onChange(of: session.project) { _, newProject in
             Task { await rebuildPlayback(for: newProject) }
         }
+        .onChange(of: session.rangeStart) { _, _ in updatePlaybackRange() }
+        .onChange(of: session.rangeEnd) { _, _ in updatePlaybackRange() }
+        .onChange(of: playback.duration) { _, _ in updatePlaybackRange() }
         .onReceive(playback.$currentTime) { value in
             guard playback.hasContent else { return }
             if abs(session.playhead.seconds - value) > 0.02 {
@@ -63,7 +66,7 @@ struct EditorView: View {
     }
 
     private var preview: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
             Group {
                 if playback.hasContent {
                     NativePlayerSurface(player: playback.player)
@@ -80,32 +83,25 @@ struct EditorView: View {
             .padding(.top, 18)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            HStack(spacing: 10) {
-                Text(playback.currentTime.formattedDuration)
-                    .font(.system(.caption, design: .monospaced))
-                    .frame(width: 64, alignment: .trailing)
-
-                Slider(
-                    value: Binding(
-                        get: { playback.currentTime },
-                        set: { value in
-                            session.playhead = MediaTime(seconds: value)
-                            playback.updateScrub(to: value)
-                        }
-                    ),
-                    in: 0...max(playback.duration, 0.1),
-                    onEditingChanged: { playback.setScrubbing($0) }
-                )
-                .disabled(!playback.hasContent)
-
-                Text(playback.duration.formattedDuration)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 64, alignment: .leading)
-            }
+            TimelineRangeSlider(
+                duration: max(playback.duration, 0.1),
+                rangeStart: Binding(
+                    get: { session.rangeStart.seconds },
+                    set: { session.rangeStart = MediaTime(seconds: $0) }
+                ),
+                rangeEnd: Binding(
+                    get: { session.rangeEnd.seconds },
+                    set: { session.rangeEnd = MediaTime(seconds: $0) }
+                ),
+                playhead: playback.currentTime,
+                onSeek: { value in
+                    playback.seek(to: value)
+                    session.playhead = MediaTime(seconds: value)
+                }
+            )
             .padding(.horizontal, 22)
 
-            HStack(spacing: 18) {
+            HStack(spacing: 12) {
                 Button {
                     playback.skip(by: -5)
                 } label: {
@@ -118,9 +114,9 @@ struct EditorView: View {
 
                 Button(action: playback.togglePlayback) {
                     Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 40, height: 40)
                         .background(Color.accentColor, in: Circle())
                 }
                 .buttonStyle(.plain)
@@ -137,17 +133,48 @@ struct EditorView: View {
                 .help("前进 5 秒")
                 .disabled(!playback.hasContent)
 
-                Spacer()
-
-                Text("预览的是剪辑后的时间线结果")
-                    .font(.caption)
+                Text("\(playback.currentTime.formattedDuration) / \(playback.duration.formattedDuration)")
+                    .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .padding(.leading, 2)
+
+                Spacer(minLength: 8)
+
+                Text(rangeSummary)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Button("删除所选范围", role: .destructive) {
+                    session.deleteSelectedRange()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.hasSelectedRange)
+
+                Button("仅保留所选") {
+                    session.keepOnlySelectedRange()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.hasSelectedRange)
+
+                Button("撤销") {
+                    session.undo()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.canUndo)
             }
             .padding(.horizontal, 22)
-            .padding(.bottom, 14)
+            .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.035))
+    }
+
+    private var rangeSummary: String {
+        "所选 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration) · 长度 \(session.selectedRangeLength.seconds.formattedDuration)"
     }
 
     private var inspector: some View {
@@ -158,31 +185,13 @@ struct EditorView: View {
             propertyRow("画布", value: "\(session.project.canvasWidth) × \(session.project.canvasHeight)")
             propertyRow("帧率", value: "\(session.project.frameRate) fps")
             propertyRow("素材", value: "\(session.project.assets.count) 个")
+            propertyRow("轨道", value: "\(session.project.tracks.count) 条")
             Spacer()
-            Text("片段操作").font(.subheadline.weight(.semibold))
-            Button {
-                session.splitAtPlayhead()
-            } label: {
-                Label("在播放头处分割", systemImage: "scissors")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .disabled(session.selectedClipID == nil)
-            Button(role: .destructive) {
-                session.deleteSelectedClip()
-            } label: {
-                Label("删除选中片段", systemImage: "trash")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .disabled(session.selectedClipID == nil)
-            Button {
-                session.undo()
-            } label: {
-                Label("撤销", systemImage: "arrow.uturn.backward")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .disabled(!session.canUndo)
+            Text("拖动时间线上方的一对游标选择剪辑范围，再用「删除所选范围」或「仅保留所选」完成编辑。播放时会自动停在终点游标处。")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .buttonStyle(.plain)
         .padding(18)
         .frame(width: 245, alignment: .leading)
     }
@@ -192,7 +201,7 @@ struct EditorView: View {
             HStack {
                 Text("时间线").font(.subheadline.weight(.semibold))
                 Spacer()
-                Text("点击片段可选中并定位播放头 · 非破坏式编辑 · 项目自动保存")
+                Text("拖动游标选择范围 · 点击片段可定位播放头 · 非破坏式编辑 · 自动保存")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -267,5 +276,16 @@ struct EditorView: View {
         await playback.rebuild(project: project) { asset in
             appModel.projectStore.mediaURL(for: asset, in: project)
         }
+        updatePlaybackRange()
+    }
+
+    private func updatePlaybackRange() {
+        let end = min(session.rangeEnd.seconds, playback.duration)
+        let start = max(0, min(session.rangeStart.seconds, end))
+        guard playback.duration > 0, end - start > 0.01 else {
+            playback.setPlaybackRange(nil)
+            return
+        }
+        playback.setPlaybackRange(start...end)
     }
 }
