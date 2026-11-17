@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import SwiftUI
 
@@ -34,9 +35,19 @@ final class AppModel: ObservableObject {
     let projectStore: ProjectStore
     let recorder: ScreenRecorder
 
+    private var childObservers: Set<AnyCancellable> = []
+
     init() {
         projectStore = ProjectStore()
         recorder = ScreenRecorder()
+        // Nested ObservableObjects do not forward their changes to AppModel,
+        // so the views observing AppModel would never refresh. Forward them.
+        projectStore.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &childObservers)
+        recorder.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &childObservers)
     }
 
     func openEditor(_ project: ProjectDocument) {
