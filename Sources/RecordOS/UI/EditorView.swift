@@ -4,13 +4,7 @@ import SwiftUI
 struct EditorView: View {
     @EnvironmentObject private var appModel: AppModel
     @ObservedObject var session: EditorSession
-
-    @State private var player: AVPlayer?
-
-    private var selectedAssetURL: URL? {
-        guard let asset = session.selectedAsset else { return nil }
-        return appModel.projectStore.mediaURL(for: asset, in: session.project)
-    }
+    @StateObject private var playback = EditorPlaybackModel()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,8 +20,17 @@ struct EditorView: View {
             timeline
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .onAppear(perform: loadPlayer)
-        .onChange(of: session.selectedClipID) { loadPlayer() }
+        .task { await rebuildPlayback(for: session.project) }
+        .onChange(of: session.project) { _, newProject in
+            Task { await rebuildPlayback(for: newProject) }
+        }
+        .onReceive(playback.$currentTime) { value in
+            guard playback.hasContent else { return }
+            if abs(session.playhead.seconds - value) > 0.02 {
+                session.playhead = MediaTime(seconds: value)
+            }
+        }
+        .onDisappear { playback.teardown() }
         .alert("剪辑操作", isPresented: Binding(
             get: { session.errorMessage != nil },
             set: { if !$0 { session.clearError() } }
@@ -60,34 +63,84 @@ struct EditorView: View {
     }
 
     private var preview: some View {
-        VStack(spacing: 10) {
-            if let player {
-                NativePlayerSurface(player: player)
-                    .clipShape(RoundedRectangle(cornerRadius: 9))
-                    .padding(18)
-            } else {
-                ContentUnavailableView("没有可预览的媒体", systemImage: "play.rectangle")
+        VStack(spacing: 12) {
+            Group {
+                if playback.hasContent {
+                    NativePlayerSurface(player: playback.player)
+                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                } else {
+                    ContentUnavailableView(
+                        "没有可预览的剪辑",
+                        systemImage: "play.rectangle",
+                        description: Text("时间线为空，或媒体文件已不存在。")
+                    )
+                }
             }
-            HStack(spacing: 14) {
-                Button {
-                    player?.seek(to: session.playhead.cmTime)
-                } label: {
-                    Image(systemName: "backward.end.fill")
-                }
-                .buttonStyle(.plain)
-                Button {
-                    if player?.timeControlStatus == .playing { player?.pause() }
-                    else { player?.play() }
-                } label: {
-                    Image(systemName: "playpause.fill")
-                }
-                .buttonStyle(.plain)
-                Text(session.playhead.seconds.formattedDuration)
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            HStack(spacing: 10) {
+                Text(playback.currentTime.formattedDuration)
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(width: 64, alignment: .trailing)
+
+                Slider(
+                    value: Binding(
+                        get: { playback.currentTime },
+                        set: { value in
+                            session.playhead = MediaTime(seconds: value)
+                            playback.updateScrub(to: value)
+                        }
+                    ),
+                    in: 0...max(playback.duration, 0.1),
+                    onEditingChanged: { playback.setScrubbing($0) }
+                )
+                .disabled(!playback.hasContent)
+
+                Text(playback.duration.formattedDuration)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .frame(width: 64, alignment: .leading)
+            }
+            .padding(.horizontal, 22)
+
+            HStack(spacing: 18) {
+                Button {
+                    playback.skip(by: -5)
+                } label: {
+                    Image(systemName: "gobackward.5")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .help("后退 5 秒")
+                .disabled(!playback.hasContent)
+
+                Button(action: playback.togglePlayback) {
+                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(Color.accentColor, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help(playback.isPlaying ? "暂停" : "播放")
+                .disabled(!playback.hasContent)
+
+                Button {
+                    playback.skip(by: 5)
+                } label: {
+                    Image(systemName: "goforward.5")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .help("前进 5 秒")
+                .disabled(!playback.hasContent)
+
                 Spacer()
-                Text(session.project.duration.seconds.formattedDuration)
-                    .font(.system(.caption, design: .monospaced))
+
+                Text("预览的是剪辑后的时间线结果")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
             .padding(.horizontal, 22)
@@ -139,7 +192,7 @@ struct EditorView: View {
             HStack {
                 Text("时间线").font(.subheadline.weight(.semibold))
                 Spacer()
-                Text("非破坏式编辑 · 项目自动保存")
+                Text("点击片段可选中并定位播放头 · 非破坏式编辑 · 项目自动保存")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -152,38 +205,10 @@ struct EditorView: View {
                                 .foregroundStyle(.secondary)
                                 .frame(width: 56, alignment: .leading)
                             ForEach(track.clips) { clip in
-                                Button {
-                                    session.selectedClipID = clip.id
-                                    session.playhead = clip.timelineStart
-                                    player?.seek(to: clip.sourceStart.cmTime)
-                                } label: {
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .fill(session.selectedClipID == clip.id ? Color.accentColor : Color.accentColor.opacity(0.42))
-                                        .frame(width: max(110, clip.duration.seconds * 28), height: 28)
-                                        .overlay(alignment: .leading) {
-                                            Text(track.kind == .video ? "屏幕录制" : "系统声音")
-                                                .font(.caption2.weight(.medium))
-                                                .foregroundStyle(.white)
-                                                .padding(.leading, 8)
-                                        }
-                                }
-                                .buttonStyle(.plain)
+                                clipButton(for: clip)
                             }
                         }
                         .frame(height: 32)
-                    }
-                    if session.project.duration.seconds > 0 {
-                        Slider(
-                            value: Binding(
-                                get: { session.playhead.seconds },
-                                set: { value in
-                                    session.playhead = MediaTime(seconds: value)
-                                    player?.seek(to: session.playhead.cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
-                                }
-                            ),
-                            in: 0...session.project.duration.seconds
-                        )
-                        .frame(maxWidth: 420)
                     }
                 }
                 .padding(.vertical, 2)
@@ -195,6 +220,40 @@ struct EditorView: View {
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.65))
     }
 
+    private func clipButton(for clip: TimelineClip) -> some View {
+        Button {
+            session.selectedClipID = clip.id
+            session.playhead = clip.timelineStart
+            playback.seek(to: clip.timelineStart.seconds)
+        } label: {
+            RoundedRectangle(cornerRadius: 5)
+                .fill(session.selectedClipID == clip.id ? Color.accentColor : Color.accentColor.opacity(0.42))
+                .frame(width: max(110, clip.duration.seconds * 28), height: 28)
+                .overlay(alignment: .leading) {
+                    Text(clipLabel(for: clip))
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.leading, 8)
+                        .lineLimit(1)
+                }
+                .overlay {
+                    if session.selectedClipID == clip.id {
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color.white.opacity(0.9), lineWidth: 2)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .help("选中片段并定位到 \(clip.timelineStart.seconds.formattedDuration)")
+    }
+
+    private func clipLabel(for clip: TimelineClip) -> String {
+        let trackKind = session.project.tracks
+            .first(where: { track in track.clips.contains(where: { $0.id == clip.id }) })?
+            .kind
+        return trackKind == .audio ? "系统声音" : "屏幕录制"
+    }
+
     private func propertyRow(_ name: String, value: String) -> some View {
         HStack {
             Text(name).foregroundStyle(.secondary)
@@ -204,11 +263,9 @@ struct EditorView: View {
         .font(.caption)
     }
 
-    private func loadPlayer() {
-        guard let selectedAssetURL else {
-            player = nil
-            return
+    private func rebuildPlayback(for project: ProjectDocument) async {
+        await playback.rebuild(project: project) { asset in
+            appModel.projectStore.mediaURL(for: asset, in: project)
         }
-        player = AVPlayer(url: selectedAssetURL)
     }
 }

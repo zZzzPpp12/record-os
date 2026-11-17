@@ -10,6 +10,7 @@
 		0AC631CF493F9A7B82C68870 /* RecordOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85545B1376BF2BCFE51379BB /* RecordOSApp.swift */; };
 		172D3448FA9BD842FF717287 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B723EF8CECAC246C1177047 /* SharedViews.swift */; };
 		1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEC2594C573BB74710A0047 /* ProjectDocument.swift */; };
+		467ACEF9AB8D0E19EC76BF2F /* EditorPlaybackModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */; };
 		6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD94AA31D19B8A2CF785F26E /* RecorderView.swift */; };
 		89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */; };
 		98C0246146054D0F181016B4 /* NativePlayerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22AA48D947F873D00E7CB1EB /* NativePlayerSurface.swift */; };
@@ -38,6 +39,7 @@
 		6E418CAC8AACC86D87130A95 /* ProjectPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectPreviewView.swift; sourceTree = "<group>"; };
 		7B1FA1436828523002CB108F /* RecordOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = RecordOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B723EF8CECAC246C1177047 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
+		7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorPlaybackModel.swift; sourceTree = "<group>"; };
 		85545B1376BF2BCFE51379BB /* RecordOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordOSApp.swift; sourceTree = "<group>"; };
 		AD94AA31D19B8A2CF785F26E /* RecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderView.swift; sourceTree = "<group>"; };
 		B0F98D276E208AA60D685CEE /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
@@ -93,6 +95,7 @@
 		8D4650A3095770275326A08A /* Editing */ = {
 			isa = PBXGroup;
 			children = (
+				7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */,
 				12AA1DADF558F6830733605F /* EditorSession.swift */,
 			);
 			path = Editing;
@@ -202,6 +205,7 @@
 			files = (
 				E95C2029EF32289D36E15AA7 /* AppModel.swift in Sources */,
 				C697600BA3B531A6A4FF0ED2 /* AppShellView.swift in Sources */,
+				467ACEF9AB8D0E19EC76BF2F /* EditorPlaybackModel.swift in Sources */,
 				A8473E299922762047A956E7 /* EditorSession.swift in Sources */,
 				9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */,
 				E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */,
