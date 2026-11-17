@@ -49,6 +49,7 @@ struct RecorderView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(10)
                             .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 9))
+                            .disabled(model.recorder.isRecording)
                         }
                     }
 
@@ -71,16 +72,32 @@ struct RecorderView: View {
 
                     HStack(spacing: 12) {
                         if model.recorder.isRecording {
-                            Label("正在录制", systemImage: "record.circle.fill")
-                                .foregroundStyle(.red)
+                            RecordingPulseDot()
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("当前屏幕正在录制中")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.red)
+                                if let startedAt = model.recorder.recordingStartedAt {
+                                    TimelineView(.periodic(from: startedAt, by: 1)) { context in
+                                        let elapsed = max(0, context.date.timeIntervalSince(startedAt))
+                                        Text("已录制 \(elapsed.formattedDuration) · 切换页面也会继续录制")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
                             Spacer()
-                            Button("停止并打开项目") {
+                            Button(model.recorder.isStopping ? "正在保存…" : "停止并打开项目") {
                                 Task { await stopRecording() }
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(.red)
-                            .disabled(isWorking)
+                            .disabled(isWorking || model.recorder.isStopping)
                         } else {
+                            Label("当前未在录制", systemImage: "checkmark.circle")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                            Spacer()
                             Button {
                                 Task { await startRecording() }
                             } label: {
@@ -91,11 +108,20 @@ struct RecorderView: View {
                             .disabled(isWorking || selectedDisplayID == 0)
                         }
                     }
+                    .padding(12)
+                    .background(
+                        (model.recorder.isRecording ? Color.red.opacity(0.08) : Color(nsColor: .controlBackgroundColor)),
+                        in: RoundedRectangle(cornerRadius: 10)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .strokeBorder(model.recorder.isRecording ? Color.red.opacity(0.35) : Color.clear)
+                    )
                 }
                 .padding(22)
                 .frame(maxWidth: 560, minHeight: 370, alignment: .leading)
                 .background(.background, in: RoundedRectangle(cornerRadius: 14))
-                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.quaternary))
+                .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(model.recorder.isRecording ? Color.red.opacity(0.45) : Color.secondary.opacity(0.25)))
 
                 VStack(alignment: .leading, spacing: 14) {
                     Label("录制流程", systemImage: "sparkles")

@@ -53,4 +53,13 @@ final class AppModel: ObservableObject {
             alertMessage = "录制已完成，但创建项目失败：\(error.localizedDescription)"
         }
     }
+
+    func stopRecordingFromBanner() async {
+        do {
+            let url = try await recorder.stopRecording()
+            await finishRecording(at: url)
+        } catch {
+            alertMessage = "停止录制失败：\(error.localizedDescription)"
+        }
+    }
 }

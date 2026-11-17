@@ -7,7 +7,20 @@ struct AppShellView: View {
         HStack(spacing: 0) {
             sidebar
             Divider()
-            mainContent
+            VStack(spacing: 0) {
+                if model.recorder.isRecording {
+                    RecordingStatusBanner(
+                        displayName: model.recorder.activeDisplay?.summary,
+                        startedAt: model.recorder.recordingStartedAt ?? .now,
+                        isStopping: model.recorder.isStopping,
+                        onStop: {
+                            Task { await model.stopRecordingFromBanner() }
+                        }
+                    )
+                }
+                mainContent
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .alert("RecordOS", isPresented: alertPresented) {
@@ -34,11 +47,17 @@ struct AppShellView: View {
                     Button {
                         model.route = route
                     } label: {
-                        Label(route.title, systemImage: route.symbol)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .contentShape(Rectangle())
+                        HStack(spacing: 8) {
+                            Label(route.title, systemImage: route.symbol)
+                            Spacer()
+                            if route == .record && model.recorder.isRecording {
+                                RecordingPulseDot()
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(model.route == route ? Color.accentColor : Color.primary.opacity(0.75))
@@ -53,9 +72,9 @@ struct AppShellView: View {
 
             Spacer()
 
-            Text("本地录制 · 本地项目")
+            Text(model.recorder.isRecording ? "状态：正在录制中" : "状态：未在录制")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(model.recorder.isRecording ? .red : .secondary)
                 .padding(.horizontal, 18)
                 .padding(.bottom, 16)
         }

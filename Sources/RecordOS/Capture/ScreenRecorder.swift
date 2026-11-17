@@ -16,6 +16,9 @@ struct DisplayChoice: Identifiable, Hashable {
 final class ScreenRecorder: ObservableObject {
     @Published private(set) var displays: [DisplayChoice] = []
     @Published private(set) var isRecording = false
+    @Published private(set) var isStopping = false
+    @Published private(set) var recordingStartedAt: Date?
+    @Published private(set) var activeDisplay: DisplayChoice?
     @Published private(set) var lastError: String?
 
     private var stream: SCStream?
@@ -86,24 +89,27 @@ final class ScreenRecorder: ObservableObject {
         self.finishSignal = finishSignal
         stream = captureStream
         activeOutputURL = outputURL
+        activeDisplay = displays.first(where: { $0.id == displayID })
+            ?? DisplayChoice(id: displayID, name: "显示器", width: display.width, height: display.height)
+        recordingStartedAt = .now
+        isStopping = false
         isRecording = true
     }
 
     private var activeOutputURL: URL?
 
     func stopRecording() async throws -> URL {
+        guard !isStopping else {
+            throw ScreenRecorderError.alreadyStopping
+        }
         guard let stream, let outputURL = activeOutputURL, let finishSignal else {
             throw ScreenRecorderError.noActiveRecording
         }
+        isStopping = true
+        defer { resetRecordingState() }
         do {
             try await stream.stopCapture()
             let failure = await finishSignal.wait()
-            self.stream = nil
-            output = nil
-            outputDelegate = nil
-            self.finishSignal = nil
-            activeOutputURL = nil
-            isRecording = false
             if let failure, !failure.isEmpty {
                 throw ScreenRecorderError.outputFailed(failure)
             }
@@ -113,17 +119,31 @@ final class ScreenRecorder: ObservableObject {
             throw error
         }
     }
+
+    private func resetRecordingState() {
+        stream = nil
+        output = nil
+        outputDelegate = nil
+        finishSignal = nil
+        activeOutputURL = nil
+        activeDisplay = nil
+        recordingStartedAt = nil
+        isStopping = false
+        isRecording = false
+    }
 }
 
 private enum ScreenRecorderError: LocalizedError {
     case displayUnavailable
     case noActiveRecording
+    case alreadyStopping
     case outputFailed(String)
 
     var errorDescription: String? {
         switch self {
         case .displayUnavailable: "所选显示器已不可用，请刷新屏幕列表。"
         case .noActiveRecording: "当前没有正在进行的录制。"
+        case .alreadyStopping: "正在停止录制，请稍候。"
         case .outputFailed(let message): "录制文件写入失败：\(message)"
         }
     }
