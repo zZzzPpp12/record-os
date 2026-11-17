@@ -4,26 +4,82 @@ import Foundation
 @MainActor
 final class ProjectStore: ObservableObject {
     @Published private(set) var projects: [ProjectDocument] = []
+    @Published private(set) var rootURL: URL
 
     private let fileManager: FileManager
-    private let rootURL: URL
-    private let projectsURL: URL
+    private static let storageRootDefaultsKey = "RecordOS.StorageRootPath.v1"
 
     init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
-        let supportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? fileManager.temporaryDirectory
-        rootURL = supportURL.appendingPathComponent("RecordOS", isDirectory: true)
-        projectsURL = rootURL.appendingPathComponent("Projects", isDirectory: true)
-        try? fileManager.createDirectory(at: projectsURL, withIntermediateDirectories: true)
+        let defaultRoot = Self.defaultRootURL(fileManager: fileManager)
+        var root = defaultRoot
+        if let savedPath = UserDefaults.standard.string(forKey: Self.storageRootDefaultsKey),
+           !savedPath.isEmpty {
+            let candidate = URL(fileURLWithPath: savedPath, isDirectory: true)
+            if fileManager.fileExists(atPath: candidate.path) {
+                root = candidate
+            }
+        }
+        rootURL = root
+        let projectsDirectory = root.appendingPathComponent("Projects", isDirectory: true)
+        try? fileManager.createDirectory(at: projectsDirectory, withIntermediateDirectories: true)
         reload()
     }
 
-    var projectsDirectoryURL: URL { projectsURL }
+    static func defaultRootURL(fileManager: FileManager = .default) -> URL {
+        let supportURL = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            ?? fileManager.temporaryDirectory
+        return supportURL.appendingPathComponent("RecordOS", isDirectory: true)
+    }
+
+    var projectsDirectoryURL: URL {
+        rootURL.appendingPathComponent("Projects", isDirectory: true)
+    }
+
+    func changeStorageRoot(to url: URL, migrateExisting: Bool) throws {
+        let newRoot = url.standardizedFileURL
+        guard newRoot.path != rootURL.standardizedFileURL.path else { return }
+
+        let newProjects = newRoot.appendingPathComponent("Projects", isDirectory: true)
+        let oldProjects = projectsDirectoryURL
+
+        if migrateExisting {
+            for project in projects {
+                let destination = newProjects.appendingPathComponent(project.id.uuidString, isDirectory: true)
+                if fileManager.fileExists(atPath: destination.path) {
+                    throw ProjectStoreError.destinationOccupied(project.name)
+                }
+            }
+        }
+
+        try fileManager.createDirectory(at: newProjects, withIntermediateDirectories: true)
+
+        if migrateExisting {
+            var movedPairs: [(source: URL, destination: URL)] = []
+            do {
+                for project in projects {
+                    let source = oldProjects.appendingPathComponent(project.id.uuidString, isDirectory: true)
+                    guard fileManager.fileExists(atPath: source.path) else { continue }
+                    let destination = newProjects.appendingPathComponent(project.id.uuidString, isDirectory: true)
+                    try fileManager.moveItem(at: source, to: destination)
+                    movedPairs.append((source, destination))
+                }
+            } catch {
+                for pair in movedPairs.reversed() {
+                    try? fileManager.moveItem(at: pair.destination, to: pair.source)
+                }
+                throw error
+            }
+        }
+
+        rootURL = newRoot
+        UserDefaults.standard.set(newRoot.path, forKey: Self.storageRootDefaultsKey)
+        reload()
+    }
 
     func reload() {
         guard let folders = try? fileManager.contentsOfDirectory(
-            at: projectsURL,
+            at: projectsDirectoryURL,
             includingPropertiesForKeys: [.isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else {
@@ -43,7 +99,7 @@ final class ProjectStore: ObservableObject {
     }
 
     func projectFolder(for projectID: UUID) -> URL {
-        projectsURL.appendingPathComponent(projectID.uuidString, isDirectory: true)
+        projectsDirectoryURL.appendingPathComponent(projectID.uuidString, isDirectory: true)
     }
 
     func mediaURL(for asset: MediaAsset, in project: ProjectDocument) -> URL {
@@ -150,6 +206,17 @@ final class ProjectStore: ObservableObject {
         )
         try save(project)
         return projects.first(where: { $0.id == project.id }) ?? project
+    }
+}
+
+enum ProjectStoreError: LocalizedError {
+    case destinationOccupied(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .destinationOccupied(let name):
+            "目标位置已存在名为「\(name)」的项目文件夹，请选择其他文件夹。"
+        }
     }
 }
 

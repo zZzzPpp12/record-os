@@ -23,4 +23,4 @@ xcodebuild -project RecordOS.xcodeproj -scheme RecordOS -configuration Debug bui
 
 ## 数据位置
 
-项目保存在 `~/Library/Application Support/RecordOS/Projects/`。每个项目包含一个 `project.json` 和 `Media/` 源媒体目录。
+项目默认保存在 `~/Library/Application Support/RecordOS/Projects/`，可在「设置 → 存储位置」中更换为任意文件夹（支持迁移已有项目）。每个项目包含一个 `project.json` 和 `Media/` 源媒体目录。
