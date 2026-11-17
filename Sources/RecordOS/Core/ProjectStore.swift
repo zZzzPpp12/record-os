@@ -65,6 +65,22 @@ final class ProjectStore: ObservableObject {
         projects.sort { $0.updatedAt > $1.updatedAt }
     }
 
+    func renameProject(_ project: ProjectDocument, to newName: String) throws {
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != project.name else { return }
+        var updated = project
+        updated.name = trimmed
+        try save(updated)
+    }
+
+    func deleteProject(_ project: ProjectDocument) throws {
+        let folder = projectFolder(for: project.id)
+        if fileManager.fileExists(atPath: folder.path) {
+            try fileManager.removeItem(at: folder)
+        }
+        projects.removeAll(where: { $0.id == project.id })
+    }
+
     func importRecording(at sourceURL: URL) async throws -> ProjectDocument {
         let id = UUID()
         let projectName = "录制 \(Date.now.formatted(date: .numeric, time: .shortened))"

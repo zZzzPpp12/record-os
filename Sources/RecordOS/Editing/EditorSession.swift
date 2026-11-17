@@ -87,6 +87,11 @@ final class EditorSession: ObservableObject, Identifiable {
         errorMessage = nil
     }
 
+    func syncProjectMetadata(_ updated: ProjectDocument) {
+        project.name = updated.name
+        project.updatedAt = updated.updatedAt
+    }
+
     private func commit(_ updated: ProjectDocument) {
         undoStack.append(project)
         project = updated

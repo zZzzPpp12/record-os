@@ -44,6 +44,29 @@ final class AppModel: ObservableObject {
         route = .library
     }
 
+    func renameProject(_ project: ProjectDocument, to newName: String) {
+        do {
+            try projectStore.renameProject(project, to: newName)
+            if activeEditor?.id == project.id,
+               let updated = projectStore.projects.first(where: { $0.id == project.id }) {
+                activeEditor?.syncProjectMetadata(updated)
+            }
+        } catch {
+            alertMessage = "重命名项目失败：\(error.localizedDescription)"
+        }
+    }
+
+    func deleteProject(_ project: ProjectDocument) {
+        do {
+            try projectStore.deleteProject(project)
+            if activeEditor?.id == project.id {
+                activeEditor = nil
+            }
+        } catch {
+            alertMessage = "删除项目失败：\(error.localizedDescription)"
+        }
+    }
+
     func finishRecording(at url: URL) async {
         do {
             _ = try await projectStore.importRecording(at: url)
