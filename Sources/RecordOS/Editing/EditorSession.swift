@@ -6,6 +6,8 @@ final class EditorSession: ObservableObject, Identifiable {
     @Published private(set) var project: ProjectDocument
     @Published var playhead = MediaTime.zero
     @Published var selectedClipID: UUID?
+    @Published var selectedMosaicID: UUID?
+    @Published var isMosaicDrawMode = false
     @Published var rangeStart = MediaTime.zero
     @Published var rangeEnd = MediaTime.zero
     @Published private(set) var errorMessage: String?
@@ -19,6 +21,7 @@ final class EditorSession: ObservableObject, Identifiable {
         self.id = project.id
         self.store = store
         self.selectedClipID = project.tracks.first(where: { $0.kind == .video })?.clips.first?.id
+        self.selectedMosaicID = project.mosaicRegions.first?.id
         self.rangeStart = .zero
         self.rangeEnd = project.duration
     }
@@ -38,6 +41,91 @@ final class EditorSession: ObservableObject, Identifiable {
 
     var selectedRangeLength: MediaTime { rangeEnd - rangeStart }
 
+    var selectedMosaic: MosaicRegion? {
+        guard let selectedMosaicID else { return nil }
+        return project.mosaicRegions.first(where: { $0.id == selectedMosaicID })
+    }
+
+    func addMosaicRegion(rect: NormalizedRect) {
+        guard hasSelectedRange else {
+            errorMessage = "请先拖动前后两个分割点选择需要打码的时间段。"
+            return
+        }
+        let clampedRect = rect.clamped()
+        let region = MosaicRegion(
+            startTime: rangeStart,
+            endTime: rangeEnd,
+            rect: clampedRect,
+            pixelScale: MosaicRegion.defaultPixelScale
+        )
+        var next = project
+        next.mosaicRegions.append(region)
+        commit(next)
+        selectedMosaicID = region.id
+        isMosaicDrawMode = false
+    }
+
+    func updateMosaicRegion(
+        id: UUID,
+        rect: NormalizedRect? = nil,
+        startTime: MediaTime? = nil,
+        endTime: MediaTime? = nil,
+        pixelScale: Double? = nil,
+        recordUndo: Bool = true
+    ) {
+        guard let index = project.mosaicRegions.firstIndex(where: { $0.id == id }) else { return }
+        var updated = project
+        var region = updated.mosaicRegions[index]
+        if let rect {
+            region.rect = rect.clamped()
+        }
+        if let startTime {
+            let maxStart = region.endTime - MediaTime(seconds: 0.1)
+            region.startTime = min(max(.zero, startTime), max(.zero, maxStart))
+        }
+        if let endTime {
+            let minEnd = region.startTime + MediaTime(seconds: 0.1)
+            region.endTime = max(min(project.duration, endTime), min(project.duration, minEnd))
+        }
+        if let pixelScale {
+            region.pixelScale = min(max(pixelScale, 8), 64)
+        }
+        guard region != updated.mosaicRegions[index] else { return }
+        updated.mosaicRegions[index] = region
+
+        if recordUndo {
+            commit(updated)
+        } else {
+            // Interactive drag: update in memory only so we don't rewrite
+            // project.json on every mouse move. The edit session persists on end.
+            project = updated
+        }
+    }
+
+    func beginMosaicUndoCheckpoint() {
+        if undoStack.last != project {
+            undoStack.append(project)
+        }
+    }
+
+    func endMosaicEditSession() {
+        // Drop a no-op checkpoint if the gesture ended without changing anything.
+        if undoStack.last == project, !undoStack.isEmpty {
+            undoStack.removeLast()
+        }
+        persist()
+    }
+
+    func deleteMosaicRegion(id: UUID) {
+        var next = project
+        next.mosaicRegions.removeAll(where: { $0.id == id })
+        guard next.mosaicRegions != project.mosaicRegions else { return }
+        commit(next)
+        if selectedMosaicID == id {
+            selectedMosaicID = next.mosaicRegions.first?.id
+        }
+    }
+
     func deleteSelectedRange() {
         guard hasSelectedRange else {
             errorMessage = "请先拖动两个游标选择要删除的范围。"
@@ -52,7 +140,12 @@ final class EditorSession: ObservableObject, Identifiable {
                 from: next.tracks[index].clips
             )
         }
-        guard next.tracks != project.tracks else {
+        next.mosaicRegions = Self.mosaicsByRemoving(
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
+            from: next.mosaicRegions
+        )
+        guard next.tracks != project.tracks || next.mosaicRegions != project.mosaicRegions else {
             errorMessage = "所选范围内没有可删除的内容。"
             return
         }
@@ -77,7 +170,13 @@ final class EditorSession: ObservableObject, Identifiable {
                 shiftBy: rangeStart
             )
         }
-        guard next.tracks != project.tracks else { return }
+        next.mosaicRegions = Self.mosaicsByKeeping(
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
+            from: next.mosaicRegions,
+            shiftBy: rangeStart
+        )
+        guard next.tracks != project.tracks || next.mosaicRegions != project.mosaicRegions else { return }
 
         commit(next)
         resetRange()
@@ -144,6 +243,12 @@ final class EditorSession: ObservableObject, Identifiable {
 
     private func refreshSelection() {
         selectedClipID = project.tracks.first(where: { $0.kind == .video })?.clips.first?.id
+        if let currentMosaic = selectedMosaicID,
+           !project.mosaicRegions.contains(where: { $0.id == currentMosaic }) {
+            selectedMosaicID = project.mosaicRegions.first?.id
+        } else if selectedMosaicID == nil {
+            selectedMosaicID = project.mosaicRegions.first?.id
+        }
     }
 
     private func commit(_ updated: ProjectDocument) {
@@ -201,7 +306,6 @@ final class EditorSession: ObservableObject, Identifiable {
                 tail.duration = clipEnd - rangeEnd
                 result.append(tail)
             }
-            // Fully covered clips are dropped.
         }
         return result
     }
@@ -269,6 +373,65 @@ final class EditorSession: ObservableObject, Identifiable {
                 segment.sourceStart = clip.sourceStart + (segStart - clipStart)
                 segment.duration = segDuration
                 result.append(segment)
+            }
+        }
+        return result
+    }
+
+    private static func mosaicsByRemoving(
+        rangeStart: MediaTime,
+        rangeEnd: MediaTime,
+        from regions: [MosaicRegion]
+    ) -> [MosaicRegion] {
+        var result: [MosaicRegion] = []
+        for region in regions {
+            if region.endTime <= rangeStart || region.startTime >= rangeEnd {
+                result.append(region)
+                continue
+            }
+
+            let trimsLeft = region.startTime < rangeStart
+            let trimsRight = region.endTime > rangeEnd
+
+            if trimsLeft && trimsRight {
+                var head = region
+                head.endTime = rangeStart
+                result.append(head)
+
+                var tail = region
+                tail.id = UUID()
+                tail.startTime = rangeEnd
+                result.append(tail)
+            } else if trimsLeft {
+                var head = region
+                head.endTime = rangeStart
+                result.append(head)
+            } else if trimsRight {
+                var tail = region
+                tail.id = UUID()
+                tail.startTime = rangeEnd
+                result.append(tail)
+            }
+        }
+        return result
+    }
+
+    private static func mosaicsByKeeping(
+        rangeStart: MediaTime,
+        rangeEnd: MediaTime,
+        from regions: [MosaicRegion],
+        shiftBy offset: MediaTime
+    ) -> [MosaicRegion] {
+        var result: [MosaicRegion] = []
+        for region in regions {
+            if region.endTime <= rangeStart || region.startTime >= rangeEnd {
+                continue
+            }
+            var kept = region
+            kept.startTime = max(region.startTime, rangeStart) - offset
+            kept.endTime = min(region.endTime, rangeEnd) - offset
+            if kept.endTime > kept.startTime {
+                result.append(kept)
             }
         }
         return result

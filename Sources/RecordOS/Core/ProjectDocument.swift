@@ -1,7 +1,7 @@
 import Foundation
 import CoreMedia
 
-struct MediaTime: Codable, Hashable, Comparable {
+struct MediaTime: Codable, Hashable, Comparable, Sendable {
     var value: Int64
     var timescale: Int32
 
@@ -39,6 +39,56 @@ struct MediaTime: Codable, Hashable, Comparable {
 
     static func - (lhs: MediaTime, rhs: MediaTime) -> MediaTime {
         .from(CMTimeSubtract(lhs.cmTime, rhs.cmTime))
+    }
+}
+
+/// Normalized rectangle in top-left video frame coordinates ([0, 1]).
+struct NormalizedRect: Codable, Hashable, Sendable {
+    var x: Double
+    var y: Double
+    var width: Double
+    var height: Double
+
+    static let defaultCentered = NormalizedRect(x: 0.35, y: 0.35, width: 0.3, height: 0.18)
+
+    func clamped(minSize: Double = 0.03) -> NormalizedRect {
+        let clampedWidth = min(max(width, minSize), 1.0)
+        let clampedHeight = min(max(height, minSize), 1.0)
+        let clampedX = min(max(x, 0.0), 1.0 - clampedWidth)
+        let clampedY = min(max(y, 0.0), 1.0 - clampedHeight)
+        return NormalizedRect(x: clampedX, y: clampedY, width: clampedWidth, height: clampedHeight)
+    }
+}
+
+struct MosaicRegion: Codable, Identifiable, Hashable, Sendable {
+    static let defaultPixelScale: Double = 28
+
+    var id: UUID
+    var startTime: MediaTime
+    var endTime: MediaTime
+    var rect: NormalizedRect
+    var pixelScale: Double
+
+    init(
+        id: UUID = UUID(),
+        startTime: MediaTime,
+        endTime: MediaTime,
+        rect: NormalizedRect,
+        pixelScale: Double = MosaicRegion.defaultPixelScale
+    ) {
+        self.id = id
+        self.startTime = startTime
+        self.endTime = endTime
+        self.rect = rect.clamped()
+        self.pixelScale = min(max(pixelScale, 8), 64)
+    }
+
+    var duration: MediaTime { endTime - startTime }
+
+    func isActive(at seconds: Double) -> Bool {
+        let start = startTime.seconds
+        let end = endTime.seconds
+        return seconds >= start - 0.01 && seconds <= end + 0.01
     }
 }
 
@@ -92,6 +142,62 @@ struct ProjectDocument: Codable, Identifiable, Hashable {
     var frameRate: Int
     var assets: [MediaAsset]
     var tracks: [TimelineTrack]
+    var mosaicRegions: [MosaicRegion]
+
+    init(
+        id: UUID,
+        version: Int,
+        name: String,
+        createdAt: Date,
+        updatedAt: Date,
+        canvasWidth: Int,
+        canvasHeight: Int,
+        frameRate: Int,
+        assets: [MediaAsset],
+        tracks: [TimelineTrack],
+        mosaicRegions: [MosaicRegion] = []
+    ) {
+        self.id = id
+        self.version = version
+        self.name = name
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+        self.canvasWidth = canvasWidth
+        self.canvasHeight = canvasHeight
+        self.frameRate = frameRate
+        self.assets = assets
+        self.tracks = tracks
+        self.mosaicRegions = mosaicRegions
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case version
+        case name
+        case createdAt
+        case updatedAt
+        case canvasWidth
+        case canvasHeight
+        case frameRate
+        case assets
+        case tracks
+        case mosaicRegions
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        version = try container.decode(Int.self, forKey: .version)
+        name = try container.decode(String.self, forKey: .name)
+        createdAt = try container.decode(Date.self, forKey: .createdAt)
+        updatedAt = try container.decode(Date.self, forKey: .updatedAt)
+        canvasWidth = try container.decode(Int.self, forKey: .canvasWidth)
+        canvasHeight = try container.decode(Int.self, forKey: .canvasHeight)
+        frameRate = try container.decode(Int.self, forKey: .frameRate)
+        assets = try container.decode([MediaAsset].self, forKey: .assets)
+        tracks = try container.decode([TimelineTrack].self, forKey: .tracks)
+        mosaicRegions = try container.decodeIfPresent([MosaicRegion].self, forKey: .mosaicRegions) ?? []
+    }
 
     var duration: MediaTime {
         let endTimes = tracks.flatMap(\.clips).map(\.timelineEnd)

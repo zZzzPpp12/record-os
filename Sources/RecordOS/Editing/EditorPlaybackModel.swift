@@ -16,6 +16,8 @@ final class EditorPlaybackModel: ObservableObject {
     private var generation = 0
     private var observersInstalled = false
     private var playbackRange: ClosedRange<Double>?
+    private var currentComposition: AVMutableComposition?
+    private var currentRenderInfo: (size: CGSize, fps: Int32)?
 
     init() {
         installObserversIfNeeded()
@@ -85,6 +87,8 @@ final class EditorPlaybackModel: ObservableObject {
         guard buildGeneration == generation else { return }
 
         guard let composition else {
+            currentComposition = nil
+            currentRenderInfo = nil
             player.pause()
             player.replaceCurrentItem(with: nil)
             hasContent = false
@@ -94,7 +98,22 @@ final class EditorPlaybackModel: ObservableObject {
             return
         }
 
+        currentComposition = composition
+        let renderInfo = await VideoMosaicCompositor.renderInfo(
+            for: composition,
+            frameRate: project.frameRate
+        )
+        currentRenderInfo = renderInfo
         let item = AVPlayerItem(asset: composition)
+        if let renderInfo,
+           let videoComposition = await VideoMosaicCompositor.makeVideoComposition(
+               for: composition,
+               mosaicRegions: project.mosaicRegions,
+               renderInfo: renderInfo
+           ) {
+            item.videoComposition = videoComposition
+        }
+        guard buildGeneration == generation else { return }
         player.replaceCurrentItem(with: item)
         hasContent = true
 
@@ -113,6 +132,29 @@ final class EditorPlaybackModel: ObservableObject {
 
         if wasPlaying, duration > 0 {
             play()
+        }
+    }
+
+    func updateVideoComposition(mosaicRegions: [MosaicRegion]) async {
+        guard let item = player.currentItem,
+              let composition = currentComposition,
+              let renderInfo = currentRenderInfo else { return }
+        generation += 1
+        let updateGeneration = generation
+        let videoComposition = await VideoMosaicCompositor.makeVideoComposition(
+            for: composition,
+            mosaicRegions: mosaicRegions,
+            renderInfo: renderInfo
+        )
+        guard updateGeneration == generation, player.currentItem === item else { return }
+        let pausedTime = currentTime
+        item.videoComposition = videoComposition
+        if !isPlaying {
+            await player.seek(
+                to: CMTime(seconds: pausedTime, preferredTimescale: 600),
+                toleranceBefore: .zero,
+                toleranceAfter: .zero
+            )
         }
     }
 
