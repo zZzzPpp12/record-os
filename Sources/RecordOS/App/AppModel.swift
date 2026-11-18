@@ -35,6 +35,7 @@ final class AppModel: ObservableObject {
     let projectStore: ProjectStore
     let recorder: ScreenRecorder
 
+    private let menuBarIndicator = MenuBarRecordingIndicator()
     private var childObservers: Set<AnyCancellable> = []
 
     init() {
@@ -47,6 +48,22 @@ final class AppModel: ObservableObject {
             .store(in: &childObservers)
         recorder.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &childObservers)
+        recorder.$isRecording
+            .removeDuplicates()
+            .sink { [weak self] isRecording in
+                guard let self else { return }
+                if isRecording, let startedAt = self.recorder.recordingStartedAt {
+                    self.menuBarIndicator.start(
+                        startedAt: startedAt,
+                        displayName: self.recorder.activeDisplay?.name
+                    ) { [weak self] in
+                        Task { await self?.stopRecordingFromBanner() }
+                    }
+                } else {
+                    self.menuBarIndicator.stop()
+                }
+            }
             .store(in: &childObservers)
     }
 

@@ -13,6 +13,7 @@
 		1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEC2594C573BB74710A0047 /* ProjectDocument.swift */; };
 		46341C4DE00DDBE9123C1584 /* ProjectExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB22669C853129EC327D798A /* ProjectExporter.swift */; };
 		467ACEF9AB8D0E19EC76BF2F /* EditorPlaybackModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */; };
+		6D3FA8C50BFC2D949636C770 /* MenuBarRecordingIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEC2665F38B959627EEE3CF4 /* MenuBarRecordingIndicator.swift */; };
 		6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD94AA31D19B8A2CF785F26E /* RecorderView.swift */; };
 		89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */; };
 		98C0246146054D0F181016B4 /* NativePlayerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22AA48D947F873D00E7CB1EB /* NativePlayerSurface.swift */; };
@@ -53,6 +54,7 @@
 		AD94AA31D19B8A2CF785F26E /* RecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderView.swift; sourceTree = "<group>"; };
 		B0F98D276E208AA60D685CEE /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		CB22669C853129EC327D798A /* ProjectExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectExporter.swift; sourceTree = "<group>"; };
+		DEC2665F38B959627EEE3CF4 /* MenuBarRecordingIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarRecordingIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -81,6 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				28B07153BA170CC8213CEF43 /* AppModel.swift */,
+				DEC2665F38B959627EEE3CF4 /* MenuBarRecordingIndicator.swift */,
 				85545B1376BF2BCFE51379BB /* RecordOSApp.swift */,
 			);
 			path = App;
@@ -224,6 +227,7 @@
 				A8473E299922762047A956E7 /* EditorSession.swift in Sources */,
 				9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */,
 				E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */,
+				6D3FA8C50BFC2D949636C770 /* MenuBarRecordingIndicator.swift in Sources */,
 				CAD8AD9612775732F0C6A919 /* MosaicOverlayEditor.swift in Sources */,
 				98C0246146054D0F181016B4 /* NativePlayerSurface.swift in Sources */,
 				BB7A1DDBE3A3AC4DED97037E /* ProjectCompositionBuilder.swift in Sources */,
