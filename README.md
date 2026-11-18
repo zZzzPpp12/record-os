@@ -7,7 +7,9 @@
 - SwiftUI 应用壳与录制、项目库、设置导航
 - ScreenCaptureKit 全屏录制入口（MOV / H.264）
 - 本地项目库与 JSON 项目文件
-- 视频预览、时间线片段展示、播放头定位和基础分割/撤销
+- 视频预览、双分割点区间剪辑（删除/仅保留/切分）、撤销与自动保存
+- 视频画面内任意区域马赛克打码，可按时段生效并随剪辑同步
+- 将剪辑与马赛克效果导出为本地 MOV 视频
 - 清晰分层的 Capture、Project、Editing、UI 模块
 
 ## 构建
@@ -19,7 +21,7 @@ xcodegen generate
 xcodebuild -project RecordOS.xcodeproj -scheme RecordOS -configuration Debug build
 ```
 
-首次录制时，macOS 会请求屏幕录制权限。当前采集原型录制所选显示器并保存到应用支持目录下；窗口/区域选择、导出渲染和音轨拆分是后续功能。
+首次录制时，macOS 会请求屏幕录制权限。当前采集原型录制所选显示器并保存到应用支持目录下；窗口/区域选择和音轨拆分是后续功能。
 
 ## 数据位置
 

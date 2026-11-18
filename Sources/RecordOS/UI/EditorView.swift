@@ -1,3 +1,4 @@
+import AppKit
 import AVKit
 import SwiftUI
 
@@ -5,7 +6,9 @@ struct EditorView: View {
     @EnvironmentObject private var appModel: AppModel
     @ObservedObject var session: EditorSession
     @StateObject private var playback = EditorPlaybackModel()
+    @StateObject private var exporter = ProjectExporter()
     @State private var mosaicUpdateTask: Task<Void, Never>?
+    @State private var exportAlert: ExportAlert?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -78,13 +81,93 @@ struct EditorView: View {
             Text(session.project.name)
                 .font(.headline)
             Spacer()
-            Button("导出") {}
+
+            if exporter.isExporting {
+                HStack(spacing: 8) {
+                    ProgressView(value: exporter.progress)
+                        .frame(width: 110)
+                    Text("导出中 \(exporter.progressPercent)%")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                .help("正在渲染时间线与马赛克效果")
+            } else {
+                Button {
+                    beginExport()
+                } label: {
+                    Label("导出", systemImage: "square.and.arrow.up")
+                }
                 .buttonStyle(.borderedProminent)
-                .disabled(true)
-                .help("导出渲染将在下一阶段接入")
+                .disabled(!playback.hasContent)
+                .help(playback.hasContent ? "导出包含剪辑与马赛克的视频" : "时间线为空，暂无可导出内容")
+            }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 13)
+        .alert(exportAlertTitle, isPresented: exportAlertPresented) {
+            if case .completed(let url)? = exportAlert {
+                Button("在 Finder 中显示") {
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                    exportAlert = nil
+                }
+            }
+            Button("好", role: .cancel) { exportAlert = nil }
+        } message: {
+            Text(exportAlertMessage)
+        }
+    }
+
+    private var exportAlertPresented: Binding<Bool> {
+        Binding(
+            get: { exportAlert != nil },
+            set: { if !$0 { exportAlert = nil } }
+        )
+    }
+
+    private var exportAlertTitle: String {
+        if case .failed = exportAlert { return "导出失败" }
+        return "导出完成"
+    }
+
+    private var exportAlertMessage: String {
+        switch exportAlert {
+        case .completed(let url): url.path
+        case .failed(let message): message
+        case nil: ""
+        }
+    }
+
+    private func beginExport() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.movie]
+        panel.allowsOtherFileTypes = true
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "\(sanitizedFileName(session.project.name)).mov"
+        panel.message = "选择导出视频的保存位置（包含当前剪辑与马赛克效果）"
+        panel.prompt = "导出"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        playback.pause()
+        session.isMosaicDrawMode = false
+        Task {
+            let outcome = await exporter.export(project: session.project, to: url) { asset in
+                appModel.projectStore.mediaURL(for: asset, in: session.project)
+            }
+            switch outcome {
+            case .success(let exportedURL):
+                exportAlert = .completed(exportedURL)
+            case .failure(let message):
+                exportAlert = .failed(message)
+            }
+        }
+    }
+
+    private func sanitizedFileName(_ name: String) -> String {
+        let invalid = CharacterSet(charactersIn: "/:\\?%*|\"<>")
+        let cleaned = name.components(separatedBy: invalid).joined(separator: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return cleaned.isEmpty ? "RecordOS 导出" : cleaned
     }
 
     private var preview: some View {
@@ -577,4 +660,9 @@ struct EditorView: View {
         }
         playback.setPlaybackRange(start...end)
     }
+}
+
+private enum ExportAlert {
+    case completed(URL)
+    case failed(String)
 }
