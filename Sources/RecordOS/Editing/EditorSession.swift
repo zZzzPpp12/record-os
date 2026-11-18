@@ -234,6 +234,30 @@ final class EditorSession: ObservableObject, Identifiable {
     func syncProjectMetadata(_ updated: ProjectDocument) {
         project.name = updated.name
         project.updatedAt = updated.updatedAt
+        project.exports = updated.exports
+    }
+
+    /// Records an exported video file so the library can tell source media and
+    /// edited output apart. This is metadata only, so it stays out of the undo stack.
+    func recordExport(at url: URL) {
+        var next = project
+        let export = ProjectExport(
+            filePath: url.path,
+            fileName: url.lastPathComponent,
+            duration: project.duration
+        )
+        next.exports.insert(export, at: 0)
+        next.exports = Array(next.exports.prefix(20))
+        project = next
+        persist()
+    }
+
+    func removeExportRecord(id: UUID) {
+        guard project.exports.contains(where: { $0.id == id }) else { return }
+        var next = project
+        next.exports.removeAll { $0.id == id }
+        project = next
+        persist()
     }
 
     private func resetRange() {

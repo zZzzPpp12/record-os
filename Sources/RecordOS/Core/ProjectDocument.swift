@@ -129,6 +129,33 @@ struct TimelineTrack: Codable, Identifiable, Hashable {
     var clips: [TimelineClip]
 }
 
+/// A video file produced by exporting the edited timeline (with mosaics baked in).
+struct ProjectExport: Codable, Identifiable, Hashable, Sendable {
+    var id: UUID
+    var filePath: String
+    var fileName: String
+    var createdAt: Date
+    var duration: MediaTime
+
+    init(
+        id: UUID = UUID(),
+        filePath: String,
+        fileName: String,
+        createdAt: Date = .now,
+        duration: MediaTime
+    ) {
+        self.id = id
+        self.filePath = filePath
+        self.fileName = fileName
+        self.createdAt = createdAt
+        self.duration = duration
+    }
+
+    var url: URL { URL(fileURLWithPath: filePath) }
+
+    var fileExists: Bool { FileManager.default.fileExists(atPath: filePath) }
+}
+
 struct ProjectDocument: Codable, Identifiable, Hashable {
     static let currentVersion = 1
 
@@ -143,6 +170,7 @@ struct ProjectDocument: Codable, Identifiable, Hashable {
     var assets: [MediaAsset]
     var tracks: [TimelineTrack]
     var mosaicRegions: [MosaicRegion]
+    var exports: [ProjectExport]
 
     init(
         id: UUID,
@@ -155,7 +183,8 @@ struct ProjectDocument: Codable, Identifiable, Hashable {
         frameRate: Int,
         assets: [MediaAsset],
         tracks: [TimelineTrack],
-        mosaicRegions: [MosaicRegion] = []
+        mosaicRegions: [MosaicRegion] = [],
+        exports: [ProjectExport] = []
     ) {
         self.id = id
         self.version = version
@@ -168,6 +197,7 @@ struct ProjectDocument: Codable, Identifiable, Hashable {
         self.assets = assets
         self.tracks = tracks
         self.mosaicRegions = mosaicRegions
+        self.exports = exports
     }
 
     enum CodingKeys: String, CodingKey {
@@ -182,6 +212,7 @@ struct ProjectDocument: Codable, Identifiable, Hashable {
         case assets
         case tracks
         case mosaicRegions
+        case exports
     }
 
     init(from decoder: Decoder) throws {
@@ -197,6 +228,7 @@ struct ProjectDocument: Codable, Identifiable, Hashable {
         assets = try container.decode([MediaAsset].self, forKey: .assets)
         tracks = try container.decode([TimelineTrack].self, forKey: .tracks)
         mosaicRegions = try container.decodeIfPresent([MosaicRegion].self, forKey: .mosaicRegions) ?? []
+        exports = try container.decodeIfPresent([ProjectExport].self, forKey: .exports) ?? []
     }
 
     var duration: MediaTime {

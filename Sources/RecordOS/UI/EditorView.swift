@@ -156,6 +156,7 @@ struct EditorView: View {
             }
             switch outcome {
             case .success(let exportedURL):
+                session.recordExport(at: exportedURL)
                 exportAlert = .completed(exportedURL)
             case .failure(let message):
                 exportAlert = .failed(message)

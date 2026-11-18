@@ -139,6 +139,7 @@ final class PreviewPlaybackModel: ObservableObject {
 struct ProjectPreviewView: View {
     let project: ProjectDocument
     let mediaURL: URL?
+    var mediaTitle: String? = nil
 
     @Environment(\.dismiss) private var dismiss
     @StateObject private var playback = PreviewPlaybackModel()
@@ -185,7 +186,7 @@ struct ProjectPreviewView: View {
             .buttonStyle(.plain)
 
             Spacer()
-            Text(project.name)
+            Text(mediaTitle ?? project.name)
                 .font(.headline)
             Spacer()
 

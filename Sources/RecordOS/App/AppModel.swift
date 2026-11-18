@@ -78,6 +78,17 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func removeExportRecord(_ export: ProjectExport, from project: ProjectDocument) {
+        var updated = project
+        updated.exports.removeAll { $0.id == export.id }
+        do {
+            try projectStore.save(updated)
+            activeEditor?.syncProjectMetadata(updated)
+        } catch {
+            alertMessage = "移除导出记录失败：\(error.localizedDescription)"
+        }
+    }
+
     func finishRecording(at url: URL) async {
         do {
             _ = try await projectStore.importRecording(at: url)
