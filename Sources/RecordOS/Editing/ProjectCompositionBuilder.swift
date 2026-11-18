@@ -2,6 +2,11 @@ import AVFoundation
 import Foundation
 
 enum ProjectCompositionBuilder {
+    /// Loaded tracks are reused across rebuilds. Editing the timeline rebuilds the
+    /// composition often, and re-reading the same media file each time is wasteful.
+    @MainActor private static var assetCache: [String: AVURLAsset] = [:]
+    @MainActor private static var trackCache: [String: (asset: AVURLAsset, track: AVAssetTrack)] = [:]
+
     /// Builds the timeline composition shared by preview playback and export so
     /// both always render the same clips in the same order.
     @MainActor
@@ -16,7 +21,6 @@ enum ProjectCompositionBuilder {
         guard !assetsByID.isEmpty else { return nil }
 
         let composition = AVMutableComposition()
-        var loadedTracks: [String: (asset: AVURLAsset, track: AVAssetTrack)] = [:]
         var hasContent = false
 
         for track in project.tracks {
@@ -34,22 +38,7 @@ enum ProjectCompositionBuilder {
 
             for clip in clips {
                 guard let asset = assetsByID[clip.assetID], let url = urlFor(asset) else { continue }
-                let cacheKey = url.path + "|" + mediaType.rawValue
-                let source: (asset: AVURLAsset, track: AVAssetTrack)?
-                if let cached = loadedTracks[cacheKey] {
-                    source = cached
-                } else {
-                    // Keep the AVURLAsset alive together with its track: a track
-                    // whose asset is released can no longer be inserted.
-                    let avAsset = AVURLAsset(url: url)
-                    if let avTrack = try? await avAsset.loadTracks(withMediaType: mediaType).first {
-                        source = (avAsset, avTrack)
-                        loadedTracks[cacheKey] = source
-                    } else {
-                        source = nil
-                    }
-                }
-                guard let source else { continue }
+                guard let source = await loadTrack(url: url, mediaType: mediaType) else { continue }
 
                 let range = CMTimeRange(start: clip.sourceStart.cmTime, duration: clip.duration.cmTime)
                 do {
@@ -62,5 +51,33 @@ enum ProjectCompositionBuilder {
         }
 
         return hasContent ? composition : nil
+    }
+
+    @MainActor
+    private static func loadTrack(
+        url: URL,
+        mediaType: AVMediaType
+    ) async -> (asset: AVURLAsset, track: AVAssetTrack)? {
+        let cacheKey = url.path + "|" + mediaType.rawValue
+        if let cached = trackCache[cacheKey] {
+            return cached
+        }
+
+        let asset: AVURLAsset
+        if let cachedAsset = assetCache[url.path] {
+            asset = cachedAsset
+        } else {
+            asset = AVURLAsset(url: url)
+            assetCache[url.path] = asset
+        }
+
+        // Keep the AVURLAsset alive together with its track: a track whose asset
+        // is released can no longer be inserted into a composition.
+        guard let avTrack = try? await asset.loadTracks(withMediaType: mediaType).first else {
+            return nil
+        }
+        let entry = (asset: asset, track: avTrack)
+        trackCache[cacheKey] = entry
+        return entry
     }
 }

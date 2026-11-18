@@ -147,6 +147,7 @@ private struct ProjectRow: View {
     @State private var isHoveringTitle = false
     @State private var isEditingTitle = false
     @State private var isExpanded = false
+    @State private var missingExportIDs: Set<UUID> = []
     @State private var draftTitle = ""
     @State private var skipNextFocusLossCommit = false
     @FocusState private var titleFieldFocused: Bool
@@ -238,6 +239,11 @@ private struct ProjectRow: View {
                 draftTitle = newName
             }
         }
+        .task(id: project.exports) {
+            // Stat each exported file once per change instead of on every redraw.
+            let missing = project.exports.filter { !$0.fileExists }.map(\.id)
+            missingExportIDs = Set(missing)
+        }
     }
 
     private var fileCountBadges: some View {
@@ -292,15 +298,16 @@ private struct ProjectRow: View {
                 .background(Color.primary.opacity(0.03), in: RoundedRectangle(cornerRadius: 7))
             } else {
                 ForEach(project.exports) { export in
+                    let isMissing = missingExportIDs.contains(export.id)
                     fileRow(
                         symbol: "scissors",
                         kindLabel: "剪辑文件",
                         tint: .orange,
                         name: export.fileName,
                         detail: "\(export.createdAt.formatted(date: .abbreviated, time: .shortened)) · \(export.duration.seconds.formattedDuration)",
-                        isMissing: !export.fileExists,
-                        playAction: export.fileExists ? { onPlayExport(export) } : nil,
-                        revealURL: export.fileExists ? export.url : nil,
+                        isMissing: isMissing,
+                        playAction: isMissing ? nil : { onPlayExport(export) },
+                        revealURL: isMissing ? nil : export.url,
                         removeAction: { onRemoveExport(export) }
                     )
                 }

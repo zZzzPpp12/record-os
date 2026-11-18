@@ -4,7 +4,6 @@ import SwiftUI
 @MainActor
 final class EditorSession: ObservableObject, Identifiable {
     @Published private(set) var project: ProjectDocument
-    @Published var playhead = MediaTime.zero
     @Published var selectedClipID: UUID?
     @Published var selectedMosaicID: UUID?
     @Published var isMosaicDrawMode = false

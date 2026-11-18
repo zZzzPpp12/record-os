@@ -1,23 +1,26 @@
 import AVFoundation
 import Foundation
+import Observation
 
 @MainActor
-final class EditorPlaybackModel: ObservableObject {
+@Observable
+final class EditorPlaybackModel {
     let player = AVPlayer()
 
-    @Published private(set) var currentTime: Double = 0
-    @Published private(set) var duration: Double = 0
-    @Published private(set) var isPlaying = false
-    @Published private(set) var isScrubbing = false
-    @Published private(set) var hasContent = false
+    private(set) var currentTime: Double = 0
+    private(set) var duration: Double = 0
+    private(set) var isPlaying = false
+    private(set) var isScrubbing = false
+    private(set) var hasContent = false
 
-    private var timeObserverToken: Any?
-    private var endObserver: NSObjectProtocol?
-    private var generation = 0
-    private var observersInstalled = false
-    private var playbackRange: ClosedRange<Double>?
-    private var currentComposition: AVMutableComposition?
-    private var currentRenderInfo: (size: CGSize, fps: Int32)?
+    @ObservationIgnored private var timeObserverToken: Any?
+    @ObservationIgnored private var endObserver: NSObjectProtocol?
+    @ObservationIgnored private var buildGeneration = 0
+    @ObservationIgnored private var mosaicGeneration = 0
+    @ObservationIgnored private var observersInstalled = false
+    @ObservationIgnored private var playbackRange: ClosedRange<Double>?
+    @ObservationIgnored private var currentComposition: AVMutableComposition?
+    @ObservationIgnored private var currentRenderInfo: (size: CGSize, fps: Int32)?
 
     init() {
         installObserversIfNeeded()
@@ -78,13 +81,13 @@ final class EditorPlaybackModel: ObservableObject {
 
     func rebuild(project: ProjectDocument, urlFor: @escaping (MediaAsset) -> URL?) async {
         installObserversIfNeeded()
-        generation += 1
-        let buildGeneration = generation
+        buildGeneration += 1
+        let buildID = buildGeneration
         let targetTime = currentTime
         let wasPlaying = isPlaying
 
         let composition = await ProjectCompositionBuilder.makeComposition(project: project, urlFor: urlFor)
-        guard buildGeneration == generation else { return }
+        guard buildID == buildGeneration else { return }
 
         guard let composition else {
             currentComposition = nil
@@ -103,6 +106,7 @@ final class EditorPlaybackModel: ObservableObject {
             for: composition,
             frameRate: project.frameRate
         )
+        guard buildID == buildGeneration else { return }
         currentRenderInfo = renderInfo
         let item = AVPlayerItem(asset: composition)
         if let renderInfo,
@@ -113,7 +117,7 @@ final class EditorPlaybackModel: ObservableObject {
            ) {
             item.videoComposition = videoComposition
         }
-        guard buildGeneration == generation else { return }
+        guard buildID == buildGeneration else { return }
         player.replaceCurrentItem(with: item)
         hasContent = true
 
@@ -139,14 +143,14 @@ final class EditorPlaybackModel: ObservableObject {
         guard let item = player.currentItem,
               let composition = currentComposition,
               let renderInfo = currentRenderInfo else { return }
-        generation += 1
-        let updateGeneration = generation
+        mosaicGeneration += 1
+        let updateID = mosaicGeneration
         let videoComposition = await VideoMosaicCompositor.makeVideoComposition(
             for: composition,
             mosaicRegions: mosaicRegions,
             renderInfo: renderInfo
         )
-        guard updateGeneration == generation, player.currentItem === item else { return }
+        guard updateID == mosaicGeneration, player.currentItem === item else { return }
         let pausedTime = currentTime
         item.videoComposition = videoComposition
         if !isPlaying {

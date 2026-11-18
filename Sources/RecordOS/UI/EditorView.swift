@@ -5,7 +5,7 @@ import SwiftUI
 struct EditorView: View {
     @EnvironmentObject private var appModel: AppModel
     @ObservedObject var session: EditorSession
-    @StateObject private var playback = EditorPlaybackModel()
+    @State private var playback = EditorPlaybackModel()
     @StateObject private var exporter = ProjectExporter()
     @State private var mosaicUpdateTask: Task<Void, Never>?
     @State private var exportAlert: ExportAlert?
@@ -15,7 +15,7 @@ struct EditorView: View {
             editorHeader
             Divider()
             HStack(spacing: 0) {
-                preview
+                EditorPreviewPane(session: session, playback: playback)
                 Divider()
                 inspector
             }
@@ -49,12 +49,6 @@ struct EditorView: View {
         .onChange(of: session.rangeStart) { _, _ in updatePlaybackRange() }
         .onChange(of: session.rangeEnd) { _, _ in updatePlaybackRange() }
         .onChange(of: playback.duration) { _, _ in updatePlaybackRange() }
-        .onReceive(playback.$currentTime) { value in
-            guard playback.hasContent else { return }
-            if abs(session.playhead.seconds - value) > 0.02 {
-                session.playhead = MediaTime(seconds: value)
-            }
-        }
         .onDisappear {
             mosaicUpdateTask?.cancel()
             playback.teardown()
@@ -169,194 +163,6 @@ struct EditorView: View {
         let cleaned = name.components(separatedBy: invalid).joined(separator: "-")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return cleaned.isEmpty ? "RecordOS 导出" : cleaned
-    }
-
-    private var preview: some View {
-        VStack(spacing: 10) {
-            ZStack {
-                if playback.hasContent {
-                    NativePlayerSurface(player: playback.player)
-                        .overlay {
-                            MosaicOverlayEditor(
-                                videoSize: CGSize(
-                                    width: max(session.project.canvasWidth, 1),
-                                    height: max(session.project.canvasHeight, 1)
-                                ),
-                                regions: session.project.mosaicRegions,
-                                selectedRegionID: $session.selectedMosaicID,
-                                currentTime: playback.currentTime,
-                                isDrawMode: session.isMosaicDrawMode,
-                                onCreateRegion: { rect in
-                                    session.addMosaicRegion(rect: rect)
-                                },
-                                onBeginEdit: {
-                                    session.beginMosaicUndoCheckpoint()
-                                },
-                                onUpdateRect: { id, rect in
-                                    session.updateMosaicRegion(id: id, rect: rect, recordUndo: false)
-                                },
-                                onEndEdit: {
-                                    session.endMosaicEditSession()
-                                },
-                                onSelectRegion: { id in
-                                    session.selectedMosaicID = id
-                                }
-                            )
-                        }
-                        .clipShape(RoundedRectangle(cornerRadius: 9))
-                } else {
-                    ContentUnavailableView(
-                        "没有可预览的剪辑",
-                        systemImage: "play.rectangle",
-                        description: Text("时间线为空，或媒体文件已不存在。")
-                    )
-                }
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 18)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            if session.isMosaicDrawMode {
-                HStack(spacing: 8) {
-                    Image(systemName: "rectangle.dashed")
-                        .foregroundStyle(.orange)
-                    Text("框选打码模式：直接在上方视频画面拖动框选需要打码的区域（时间段为 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration)）")
-                        .font(.caption)
-                        .foregroundStyle(.primary)
-                    Spacer()
-                    Button("取消框选") {
-                        session.isMosaicDrawMode = false
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
-                .padding(.horizontal, 18)
-            }
-
-            TimelineRangeSlider(
-                duration: max(playback.duration, 0.1),
-                rangeStart: Binding(
-                    get: { session.rangeStart.seconds },
-                    set: { session.rangeStart = MediaTime(seconds: $0) }
-                ),
-                rangeEnd: Binding(
-                    get: { session.rangeEnd.seconds },
-                    set: { session.rangeEnd = MediaTime(seconds: $0) }
-                ),
-                playhead: playback.currentTime,
-                onSeek: { value in
-                    playback.seek(to: value)
-                    session.playhead = MediaTime(seconds: value)
-                },
-                onScrubStateChanged: { scrubbing in
-                    playback.setScrubbing(scrubbing)
-                }
-            )
-            .padding(.horizontal, 18)
-
-            HStack(spacing: 10) {
-                Button {
-                    playback.skip(by: -5)
-                } label: {
-                    Image(systemName: "gobackward.5")
-                        .font(.system(size: 16))
-                }
-                .buttonStyle(.plain)
-                .help("后退 5 秒")
-                .disabled(!playback.hasContent)
-
-                Button(action: playback.togglePlayback) {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.accentColor, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .help(playback.isPlaying ? "暂停" : "播放")
-                .disabled(!playback.hasContent)
-
-                Button {
-                    playback.skip(by: 5)
-                } label: {
-                    Image(systemName: "goforward.5")
-                        .font(.system(size: 16))
-                }
-                .buttonStyle(.plain)
-                .help("前进 5 秒")
-                .disabled(!playback.hasContent)
-
-                Text("\(playback.currentTime.formattedDuration) / \(playback.duration.formattedDuration)")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 2)
-
-                Spacer(minLength: 6)
-
-                Text(rangeSummary)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Button {
-                    if session.isMosaicDrawMode {
-                        session.isMosaicDrawMode = false
-                    } else {
-                        playback.pause()
-                        session.isMosaicDrawMode = true
-                    }
-                } label: {
-                    Label(session.isMosaicDrawMode ? "框选中…" : "添加马赛克", systemImage: "checkerboard.rectangle")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(session.isMosaicDrawMode ? .orange : .accentColor)
-                .controlSize(.small)
-                .disabled(!playback.hasContent || !session.hasSelectedRange)
-                .help("在画面上框选区域，对当前分割点时间段打马赛克")
-
-                Button("切分") {
-                    session.splitAtRangeMarkers()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.hasInteriorSplitMarkers)
-                .help("按进度条上的前/后分割点将片段切分开")
-
-                Button("删除范围", role: .destructive) {
-                    session.deleteSelectedRange()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.hasSelectedRange)
-                .help("删除前/后分割点之间的内容")
-
-                Button("仅保留所选") {
-                    session.keepOnlySelectedRange()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.hasSelectedRange)
-                .help("只保留前/后分割点之间的内容")
-
-                Button("撤销") {
-                    session.undo()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.canUndo)
-            }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 12)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.035))
-    }
-
-    private var rangeSummary: String {
-        "分割点 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration)"
     }
 
     private var inspector: some View {
@@ -605,7 +411,6 @@ struct EditorView: View {
     private func clipButton(for clip: TimelineClip) -> some View {
         Button {
             session.selectedClipID = clip.id
-            session.playhead = clip.timelineStart
             playback.seek(to: clip.timelineStart.seconds)
         } label: {
             RoundedRectangle(cornerRadius: 5)
@@ -660,6 +465,198 @@ struct EditorView: View {
             return
         }
         playback.setPlaybackRange(start...end)
+    }
+}
+
+private struct EditorPreviewPane: View {
+    @ObservedObject var session: EditorSession
+    let playback: EditorPlaybackModel
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ZStack {
+                if playback.hasContent {
+                    NativePlayerSurface(player: playback.player)
+                        .overlay {
+                            MosaicOverlayEditor(
+                                videoSize: CGSize(
+                                    width: max(session.project.canvasWidth, 1),
+                                    height: max(session.project.canvasHeight, 1)
+                                ),
+                                regions: session.project.mosaicRegions,
+                                selectedRegionID: $session.selectedMosaicID,
+                                currentTime: playback.currentTime,
+                                isDrawMode: session.isMosaicDrawMode,
+                                onCreateRegion: { rect in
+                                    session.addMosaicRegion(rect: rect)
+                                },
+                                onBeginEdit: {
+                                    session.beginMosaicUndoCheckpoint()
+                                },
+                                onUpdateRect: { id, rect in
+                                    session.updateMosaicRegion(id: id, rect: rect, recordUndo: false)
+                                },
+                                onEndEdit: {
+                                    session.endMosaicEditSession()
+                                },
+                                onSelectRegion: { id in
+                                    session.selectedMosaicID = id
+                                }
+                            )
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 9))
+                } else {
+                    ContentUnavailableView(
+                        "没有可预览的剪辑",
+                        systemImage: "play.rectangle",
+                        description: Text("时间线为空，或媒体文件已不存在。")
+                    )
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 18)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if session.isMosaicDrawMode {
+                HStack(spacing: 8) {
+                    Image(systemName: "rectangle.dashed")
+                        .foregroundStyle(.orange)
+                    Text("框选打码模式：直接在上方视频画面拖动框选需要打码的区域（时间段为 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration)）")
+                        .font(.caption)
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Button("取消框选") {
+                        session.isMosaicDrawMode = false
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 7))
+                .padding(.horizontal, 18)
+            }
+
+            TimelineRangeSlider(
+                duration: max(playback.duration, 0.1),
+                rangeStart: Binding(
+                    get: { session.rangeStart.seconds },
+                    set: { session.rangeStart = MediaTime(seconds: $0) }
+                ),
+                rangeEnd: Binding(
+                    get: { session.rangeEnd.seconds },
+                    set: { session.rangeEnd = MediaTime(seconds: $0) }
+                ),
+                playhead: playback.currentTime,
+                onSeek: { value in
+                    playback.seek(to: value)
+                },
+                onScrubStateChanged: { scrubbing in
+                    playback.setScrubbing(scrubbing)
+                }
+            )
+            .padding(.horizontal, 18)
+
+            HStack(spacing: 10) {
+                Button {
+                    playback.skip(by: -5)
+                } label: {
+                    Image(systemName: "gobackward.5")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .help("后退 5 秒")
+                .disabled(!playback.hasContent)
+
+                Button(action: playback.togglePlayback) {
+                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.accentColor, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .help(playback.isPlaying ? "暂停" : "播放")
+                .disabled(!playback.hasContent)
+
+                Button {
+                    playback.skip(by: 5)
+                } label: {
+                    Image(systemName: "goforward.5")
+                        .font(.system(size: 16))
+                }
+                .buttonStyle(.plain)
+                .help("前进 5 秒")
+                .disabled(!playback.hasContent)
+
+                Text("\(playback.currentTime.formattedDuration) / \(playback.duration.formattedDuration)")
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .padding(.leading, 2)
+
+                Spacer(minLength: 6)
+
+                Text(rangeSummary)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Button {
+                    if session.isMosaicDrawMode {
+                        session.isMosaicDrawMode = false
+                    } else {
+                        playback.pause()
+                        session.isMosaicDrawMode = true
+                    }
+                } label: {
+                    Label(session.isMosaicDrawMode ? "框选中…" : "添加马赛克", systemImage: "checkerboard.rectangle")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(session.isMosaicDrawMode ? .orange : .accentColor)
+                .controlSize(.small)
+                .disabled(!playback.hasContent || !session.hasSelectedRange)
+                .help("在画面上框选区域，对当前分割点时间段打马赛克")
+
+                Button("切分") {
+                    session.splitAtRangeMarkers()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.hasInteriorSplitMarkers)
+                .help("按进度条上的前/后分割点将片段切分开")
+
+                Button("删除范围", role: .destructive) {
+                    session.deleteSelectedRange()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.hasSelectedRange)
+                .help("删除前/后分割点之间的内容")
+
+                Button("仅保留所选") {
+                    session.keepOnlySelectedRange()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.hasSelectedRange)
+                .help("只保留前/后分割点之间的内容")
+
+                Button("撤销") {
+                    session.undo()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.canUndo)
+            }
+            .padding(.horizontal, 22)
+            .padding(.bottom, 12)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.black.opacity(0.035))
+    }
+
+    private var rangeSummary: String {
+        "分割点 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration)"
     }
 }
 
