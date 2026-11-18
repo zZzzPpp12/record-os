@@ -6,13 +6,15 @@ struct TimelineRangeSlider: View {
     @Binding var rangeEnd: Double
     let playhead: Double
     var onSeek: (Double) -> Void
+    var onScrubStateChanged: ((Bool) -> Void)?
 
     private let minGap: Double = 0.1
-    private let inset: CGFloat = 10
-    private let handleSize: CGFloat = 14
-    private let handleHitSize: CGFloat = 26
-    private let trackHeight: CGFloat = 6
-    private let totalHeight: CGFloat = 26
+    private let inset: CGFloat = 14
+    private let trackHeight: CGFloat = 10
+    private let splitHandleWidth: CGFloat = 14
+    private let splitHandleHeight: CGFloat = 26
+    private let splitHitWidth: CGFloat = 28
+    private let totalHeight: CGFloat = 34
 
     var body: some View {
         GeometryReader { geometry in
@@ -20,6 +22,7 @@ struct TimelineRangeSlider: View {
             let startX = inset + x(for: rangeStart, usable: usable)
             let endX = inset + x(for: rangeEnd, usable: usable)
             let headX = inset + x(for: playhead, usable: usable)
+            let progressEndX = min(max(headX, startX), endX)
 
             ZStack(alignment: .leading) {
                 Capsule()
@@ -27,29 +30,37 @@ struct TimelineRangeSlider: View {
                     .frame(height: trackHeight)
                     .padding(.horizontal, inset)
 
-                Capsule()
-                    .fill(Color.accentColor.opacity(0.35))
+                RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
+                    .fill(Color.accentColor.opacity(0.24))
                     .frame(width: max(endX - startX, 2), height: trackHeight)
                     .offset(x: startX)
 
-                Rectangle()
-                    .fill(Color.primary.opacity(0.45))
-                    .frame(width: 1.5, height: 16)
-                    .offset(x: headX - 0.75)
+                if progressEndX > startX {
+                    RoundedRectangle(cornerRadius: trackHeight / 2, style: .continuous)
+                        .fill(Color.accentColor.opacity(0.75))
+                        .frame(width: progressEndX - startX, height: trackHeight)
+                        .offset(x: startX)
+                }
 
                 Rectangle()
-                    .fill(Color.clear)
+                    .fill(Color.primary.opacity(0.001))
                     .contentShape(Rectangle())
                     .frame(height: totalHeight)
                     .gesture(
                         DragGesture(minimumDistance: 0, coordinateSpace: .named("rangeTrack"))
                             .onChanged { value in
-                                onSeek(time(at: value.location.x, usable: usable))
+                                onScrubStateChanged?(true)
+                                let target = time(at: value.location.x, usable: usable)
+                                let clamped = min(max(target, rangeStart), rangeEnd)
+                                onSeek(clamped)
+                            }
+                            .onEnded { _ in
+                                onScrubStateChanged?(false)
                             }
                     )
 
-                handle(at: startX, isStart: true, usable: usable)
-                handle(at: endX, isStart: false, usable: usable)
+                splitHandle(at: startX, isStart: true, usable: usable)
+                splitHandle(at: endX, isStart: false, usable: usable)
             }
             .frame(height: totalHeight)
             .coordinateSpace(name: "rangeTrack")
@@ -59,31 +70,47 @@ struct TimelineRangeSlider: View {
         .allowsHitTesting(duration > 0)
     }
 
-    private func handle(at x: CGFloat, isStart: Bool, usable: CGFloat) -> some View {
+    private func splitHandle(at x: CGFloat, isStart: Bool, usable: CGFloat) -> some View {
         ZStack {
-            Circle()
-                .fill(Color(nsColor: .controlBackgroundColor))
-                .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
-                .frame(width: handleSize, height: handleSize)
-                .shadow(color: .black.opacity(0.18), radius: 1.5, y: 0.5)
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(Color.accentColor)
+                .frame(width: splitHandleWidth, height: splitHandleHeight)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4, style: .continuous)
+                        .stroke(Color.white.opacity(0.9), lineWidth: 1.5)
+                )
+                .overlay {
+                    Image(systemName: isStart ? "chevron.compact.right" : "chevron.compact.left")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.white)
+                }
+                .shadow(color: .black.opacity(0.22), radius: 2, y: 1)
         }
-        .frame(width: handleHitSize, height: handleHitSize)
+        .frame(width: splitHitWidth, height: totalHeight)
         .contentShape(Rectangle())
-        .offset(x: x - handleHitSize / 2)
+        .offset(x: x - splitHitWidth / 2)
         .gesture(
             DragGesture(minimumDistance: 0, coordinateSpace: .named("rangeTrack"))
                 .onChanged { value in
+                    onScrubStateChanged?(true)
                     let target = time(at: value.location.x, usable: usable)
                     if isStart {
-                        rangeStart = min(max(0, target), max(0, rangeEnd - minGap))
-                        onSeek(rangeStart)
+                        let upper = max(0, rangeEnd - minGap)
+                        let nextStart = min(max(0, target), upper)
+                        rangeStart = nextStart
+                        onSeek(nextStart)
                     } else {
-                        rangeEnd = max(min(duration, target), min(duration, rangeStart + minGap))
-                        onSeek(rangeEnd)
+                        let lower = min(duration, rangeStart + minGap)
+                        let nextEnd = max(min(duration, target), lower)
+                        rangeEnd = nextEnd
+                        onSeek(nextEnd)
                     }
                 }
+                .onEnded { _ in
+                    onScrubStateChanged?(false)
+                }
         )
-        .help(isStart ? "剪辑起点游标" : "剪辑终点游标")
+        .help(isStart ? "前分割点：拖动设置起始位置" : "后分割点：拖动设置结束位置")
     }
 
     private func x(for time: Double, usable: CGFloat) -> CGFloat {

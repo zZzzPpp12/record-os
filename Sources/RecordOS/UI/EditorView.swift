@@ -97,9 +97,12 @@ struct EditorView: View {
                 onSeek: { value in
                     playback.seek(to: value)
                     session.playhead = MediaTime(seconds: value)
+                },
+                onScrubStateChanged: { scrubbing in
+                    playback.setScrubbing(scrubbing)
                 }
             )
-            .padding(.horizontal, 22)
+            .padding(.horizontal, 18)
 
             HStack(spacing: 12) {
                 Button {
@@ -145,12 +148,21 @@ struct EditorView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
 
-                Button("删除所选范围", role: .destructive) {
+                Button("在分割点切分") {
+                    session.splitAtRangeMarkers()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(!session.hasInteriorSplitMarkers)
+                .help("按进度条上的前/后分割点将片段切分开")
+
+                Button("删除范围", role: .destructive) {
                     session.deleteSelectedRange()
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!session.hasSelectedRange)
+                .help("删除前/后分割点之间的内容")
 
                 Button("仅保留所选") {
                     session.keepOnlySelectedRange()
@@ -158,6 +170,7 @@ struct EditorView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .disabled(!session.hasSelectedRange)
+                .help("只保留前/后分割点之间的内容")
 
                 Button("撤销") {
                     session.undo()
@@ -174,7 +187,7 @@ struct EditorView: View {
     }
 
     private var rangeSummary: String {
-        "所选 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration) · 长度 \(session.selectedRangeLength.seconds.formattedDuration)"
+        "分割点 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration) · 长度 \(session.selectedRangeLength.seconds.formattedDuration)"
     }
 
     private var inspector: some View {
@@ -187,7 +200,7 @@ struct EditorView: View {
             propertyRow("素材", value: "\(session.project.assets.count) 个")
             propertyRow("轨道", value: "\(session.project.tracks.count) 条")
             Spacer()
-            Text("拖动时间线上方的一对游标选择剪辑范围，再用「删除所选范围」或「仅保留所选」完成编辑。播放时会自动停在终点游标处。")
+            Text("拖动进度条左右两个蓝色分割点设定范围，点击进度条可在范围内跳转。支持「在分割点切分」「删除范围」或「仅保留所选」，播放时会在后分割点自动暂停。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -201,7 +214,7 @@ struct EditorView: View {
             HStack {
                 Text("时间线").font(.subheadline.weight(.semibold))
                 Spacer()
-                Text("拖动游标选择范围 · 点击片段可定位播放头 · 非破坏式编辑 · 自动保存")
+                Text("拖动前/后分割点选择范围 · 点击片段可定位 · 非破坏式编辑 · 自动保存")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -27,6 +27,15 @@ final class EditorSession: ObservableObject, Identifiable {
 
     var hasSelectedRange: Bool { rangeEnd > rangeStart }
 
+    var hasInteriorSplitMarkers: Bool {
+        let points = [rangeStart, rangeEnd]
+        return project.tracks.contains { track in
+            track.clips.contains { clip in
+                points.contains { $0 > clip.timelineStart && $0 < clip.timelineEnd }
+            }
+        }
+    }
+
     var selectedRangeLength: MediaTime { rangeEnd - rangeStart }
 
     func deleteSelectedRange() {
@@ -72,6 +81,42 @@ final class EditorSession: ObservableObject, Identifiable {
 
         commit(next)
         resetRange()
+        refreshSelection()
+    }
+
+    func splitAtRangeMarkers() {
+        guard hasSelectedRange else {
+            errorMessage = "请先拖动前后两个分割点。"
+            return
+        }
+
+        let splitPoints = [rangeStart, rangeEnd]
+            .filter { $0 > .zero && $0 < project.duration }
+            .reduce(into: [MediaTime]()) { result, point in
+                if !result.contains(point) {
+                    result.append(point)
+                }
+            }
+            .sorted()
+
+        guard !splitPoints.isEmpty else {
+            errorMessage = "把前分割点或后分割点拖到视频中间后再分割。"
+            return
+        }
+
+        var next = project
+        for index in next.tracks.indices {
+            next.tracks[index].clips = Self.clipsBySplitting(
+                at: splitPoints,
+                from: next.tracks[index].clips
+            )
+        }
+        guard next.tracks != project.tracks else {
+            errorMessage = "分割点未落在片段内部。"
+            return
+        }
+
+        commit(next)
         refreshSelection()
     }
 
@@ -190,6 +235,40 @@ final class EditorSession: ObservableObject, Identifiable {
             kept.timelineStart = kept.timelineStart - offset
             if kept.duration > .zero, kept.timelineStart >= .zero {
                 result.append(kept)
+            }
+        }
+        return result
+    }
+
+    private static func clipsBySplitting(
+        at splitPoints: [MediaTime],
+        from clips: [TimelineClip]
+    ) -> [TimelineClip] {
+        var result: [TimelineClip] = []
+        for clip in clips {
+            let clipStart = clip.timelineStart
+            let clipEnd = clip.timelineEnd
+            let internalPoints = splitPoints.filter { $0 > clipStart && $0 < clipEnd }
+            if internalPoints.isEmpty {
+                result.append(clip)
+                continue
+            }
+
+            let boundaries = [clipStart] + internalPoints + [clipEnd]
+            for index in 0..<(boundaries.count - 1) {
+                let segStart = boundaries[index]
+                let segEnd = boundaries[index + 1]
+                let segDuration = segEnd - segStart
+                guard segDuration > .zero else { continue }
+
+                var segment = clip
+                if index > 0 {
+                    segment.id = UUID()
+                }
+                segment.timelineStart = segStart
+                segment.sourceStart = clip.sourceStart + (segStart - clipStart)
+                segment.duration = segDuration
+                result.append(segment)
             }
         }
         return result
