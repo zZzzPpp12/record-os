@@ -118,6 +118,7 @@ struct TimelineClip: Codable, Identifiable, Hashable {
     var timelineStart: MediaTime
     var sourceStart: MediaTime
     var duration: MediaTime
+    var sourceTrackIndex: Int?
 
     var timelineEnd: MediaTime { timelineStart + duration }
 }

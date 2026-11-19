@@ -10,7 +10,8 @@ struct AppShellView: View {
             VStack(spacing: 0) {
                 if model.recorder.isRecording {
                     RecordingStatusBanner(
-                        displayName: model.recorder.activeDisplay?.summary,
+                        sourceSummary: model.recorder.activeTarget?.detailSummary,
+                        audioSummary: model.recorder.activeAudioOptions.summary,
                         startedAt: model.recorder.recordingStartedAt ?? .now,
                         isStopping: model.recorder.isStopping,
                         onStop: {

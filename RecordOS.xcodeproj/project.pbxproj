@@ -15,6 +15,7 @@
 		467ACEF9AB8D0E19EC76BF2F /* EditorPlaybackModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */; };
 		6D3FA8C50BFC2D949636C770 /* MenuBarRecordingIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEC2665F38B959627EEE3CF4 /* MenuBarRecordingIndicator.swift */; };
 		6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD94AA31D19B8A2CF785F26E /* RecorderView.swift */; };
+		897A4503FC577338A17874CC /* RegionSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E72A67FB1BE00D2A61F668CB /* RegionSelectionOverlay.swift */; };
 		89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47833BCCB3E40A81FC88DDA6 /* ProjectStore.swift */; };
 		98C0246146054D0F181016B4 /* NativePlayerSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22AA48D947F873D00E7CB1EB /* NativePlayerSurface.swift */; };
 		9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F98D276E208AA60D685CEE /* EditorView.swift */; };
@@ -55,6 +56,7 @@
 		B0F98D276E208AA60D685CEE /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		CB22669C853129EC327D798A /* ProjectExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectExporter.swift; sourceTree = "<group>"; };
 		DEC2665F38B959627EEE3CF4 /* MenuBarRecordingIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarRecordingIndicator.swift; sourceTree = "<group>"; };
+		E72A67FB1BE00D2A61F668CB /* RegionSelectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionSelectionOverlay.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -92,6 +94,7 @@
 		7F64528F4F32C3775CF386FA /* Capture */ = {
 			isa = PBXGroup;
 			children = (
+				E72A67FB1BE00D2A61F668CB /* RegionSelectionOverlay.swift */,
 				105B536A788528B195ED17D0 /* ScreenRecorder.swift */,
 			);
 			path = Capture;
@@ -238,6 +241,7 @@
 				89D60187ED7762CE6C8DD189 /* ProjectStore.swift in Sources */,
 				0AC631CF493F9A7B82C68870 /* RecordOSApp.swift in Sources */,
 				6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */,
+				897A4503FC577338A17874CC /* RegionSelectionOverlay.swift in Sources */,
 				CDA77FB13F0CCC20860EE5A1 /* ScreenRecorder.swift in Sources */,
 				C7C7D9EAC691FC83DB8F1FD9 /* SettingsView.swift in Sources */,
 				172D3448FA9BD842FF717287 /* SharedViews.swift in Sources */,
@@ -310,6 +314,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RecordOS needs microphone access to capture your voice alongside screen recordings.";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "RecordOS needs screen recording access to capture the display you choose.";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
@@ -392,6 +397,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "RecordOS needs microphone access to capture your voice alongside screen recordings.";
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				INFOPLIST_KEY_NSScreenCaptureUsageDescription = "RecordOS needs screen recording access to capture the display you choose.";
 				MACOSX_DEPLOYMENT_TARGET = 15.0;

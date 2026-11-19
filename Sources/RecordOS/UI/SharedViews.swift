@@ -35,7 +35,8 @@ struct RecordingPulseDot: View {
 }
 
 struct RecordingStatusBanner: View {
-    let displayName: String?
+    let sourceSummary: String?
+    let audioSummary: String
     let startedAt: Date
     let isStopping: Bool
     let onStop: () -> Void
@@ -47,15 +48,15 @@ struct RecordingStatusBanner: View {
                 RecordingPulseDot()
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("屏幕录制中")
+                    Text("正在录制")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
-                    if let displayName {
-                        Text("正在采集「\(displayName)」画面与系统声音")
+                    if let sourceSummary {
+                        Text("正在采集「\(sourceSummary)」· \(audioSummary)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("正在采集屏幕画面与系统声音")
+                        Text("正在采集\(audioSummary)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

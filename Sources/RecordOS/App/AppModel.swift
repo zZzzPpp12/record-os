@@ -56,13 +56,23 @@ final class AppModel: ObservableObject {
                 if isRecording, let startedAt = self.recorder.recordingStartedAt {
                     self.menuBarIndicator.start(
                         startedAt: startedAt,
-                        displayName: self.recorder.activeDisplay?.name
+                        sourceTitle: self.recorder.activeTarget?.shortLabel
                     ) { [weak self] in
                         Task { await self?.stopRecordingFromBanner() }
                     }
                 } else {
                     self.menuBarIndicator.stop()
                 }
+            }
+            .store(in: &childObservers)
+        recorder.$unexpectedFailureMessage
+            .compactMap { $0 }
+            .sink { [weak self] message in
+                guard let self else { return }
+                if self.route != .record {
+                    self.alertMessage = message
+                }
+                _ = self.recorder.consumeUnexpectedFailure()
             }
             .store(in: &childObservers)
     }
@@ -106,9 +116,9 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func finishRecording(at url: URL) async {
+    func finishRecording(at url: URL, audioTrackNames: [String] = []) async {
         do {
-            _ = try await projectStore.importRecording(at: url)
+            _ = try await projectStore.importRecording(at: url, audioTrackNames: audioTrackNames)
             activeEditor = nil
             route = .library
         } catch {
@@ -118,8 +128,9 @@ final class AppModel: ObservableObject {
 
     func stopRecordingFromBanner() async {
         do {
+            let trackNames = recorder.audioTrackNames(for: recorder.activeAudioOptions)
             let url = try await recorder.stopRecording()
-            await finishRecording(at: url)
+            await finishRecording(at: url, audioTrackNames: trackNames)
         } catch {
             alertMessage = "停止录制失败：\(error.localizedDescription)"
         }

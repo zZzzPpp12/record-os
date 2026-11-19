@@ -137,7 +137,7 @@ final class ProjectStore: ObservableObject {
         projects.removeAll(where: { $0.id == project.id })
     }
 
-    func importRecording(at sourceURL: URL) async throws -> ProjectDocument {
+    func importRecording(at sourceURL: URL, audioTrackNames: [String] = []) async throws -> ProjectDocument {
         let id = UUID()
         let projectName = "录制 \(Date.now.formatted(date: .numeric, time: .shortened))"
         let folder = projectFolder(for: id)
@@ -177,17 +177,21 @@ final class ProjectStore: ObservableObject {
         var tracks = [
             TimelineTrack(id: UUID(), kind: .video, name: "视频 1", clips: [videoClip])
         ]
-        if !audioTracks.isEmpty {
+        for index in audioTracks.indices {
+            let trackName = audioTrackNames.indices.contains(index)
+                ? audioTrackNames[index]
+                : "音频 \(index + 1)"
             tracks.append(TimelineTrack(
                 id: UUID(),
                 kind: .audio,
-                name: "音频 1",
+                name: trackName,
                 clips: [TimelineClip(
                     id: UUID(),
                     assetID: assetID,
                     timelineStart: .zero,
                     sourceStart: .zero,
-                    duration: clipDuration
+                    duration: clipDuration,
+                    sourceTrackIndex: index
                 )]
             ))
         }

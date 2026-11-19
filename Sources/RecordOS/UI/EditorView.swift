@@ -326,7 +326,7 @@ struct EditorView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ScrollView(.horizontal) {
+            ScrollView([.horizontal, .vertical]) {
                 VStack(alignment: .leading, spacing: 7) {
                     ForEach(session.project.tracks) { track in
                         HStack(spacing: 8) {
@@ -335,7 +335,7 @@ struct EditorView: View {
                                 .foregroundStyle(.secondary)
                                 .frame(width: 56, alignment: .leading)
                             ForEach(track.clips) { clip in
-                                clipButton(for: clip)
+                                clipButton(for: clip, track: track)
                             }
                         }
                         .frame(height: 32)
@@ -350,8 +350,15 @@ struct EditorView: View {
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 12)
-        .frame(height: session.project.mosaicRegions.isEmpty ? 142 : 176)
+        .frame(height: timelineHeight)
         .background(Color(nsColor: .controlBackgroundColor).opacity(0.65))
+    }
+
+    private var timelineHeight: CGFloat {
+        let trackRows = max(1, session.project.tracks.count)
+        let mosaicRows = session.project.mosaicRegions.isEmpty ? 0 : 1
+        let totalRows = trackRows + mosaicRows
+        return min(240, max(142, CGFloat(totalRows) * 39 + 54))
     }
 
     private var mosaicTimelineRow: some View {
@@ -408,7 +415,7 @@ struct EditorView: View {
         .frame(height: 30)
     }
 
-    private func clipButton(for clip: TimelineClip) -> some View {
+    private func clipButton(for clip: TimelineClip, track: TimelineTrack) -> some View {
         Button {
             session.selectedClipID = clip.id
             playback.seek(to: clip.timelineStart.seconds)
@@ -417,7 +424,7 @@ struct EditorView: View {
                 .fill(session.selectedClipID == clip.id ? Color.accentColor : Color.accentColor.opacity(0.42))
                 .frame(width: max(110, clip.duration.seconds * 28), height: 28)
                 .overlay(alignment: .leading) {
-                    Text(clipLabel(for: clip))
+                    Text(clipLabel(for: track))
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(.white)
                         .padding(.leading, 8)
@@ -434,11 +441,8 @@ struct EditorView: View {
         .help("选中片段并定位到 \(clip.timelineStart.seconds.formattedDuration)")
     }
 
-    private func clipLabel(for clip: TimelineClip) -> String {
-        let trackKind = session.project.tracks
-            .first(where: { track in track.clips.contains(where: { $0.id == clip.id }) })?
-            .kind
-        return trackKind == .audio ? "系统声音" : "屏幕录制"
+    private func clipLabel(for track: TimelineTrack) -> String {
+        track.kind == .audio ? track.name : "屏幕录制"
     }
 
     private func propertyRow(_ name: String, value: String) -> some View {

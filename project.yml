@@ -11,6 +11,7 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "15.0"
     GENERATE_INFOPLIST_FILE: YES
     INFOPLIST_KEY_NSScreenCaptureUsageDescription: "RecordOS needs screen recording access to capture the display you choose."
+    INFOPLIST_KEY_NSMicrophoneUsageDescription: "RecordOS needs microphone access to capture your voice alongside screen recordings."
     INFOPLIST_KEY_NSPrincipalClass: NSApplication
     SWIFT_STRICT_CONCURRENCY: minimal
     # Sign with a stable developer identity instead of ad-hoc: macOS ties screen

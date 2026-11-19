@@ -54,7 +54,8 @@ struct SettingsView: View {
 
             GroupBox("当前录制原型") {
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("ScreenCaptureKit 全屏采集", systemImage: "display")
+                    Label("ScreenCaptureKit 全屏 / 窗口 / 框选区域采集", systemImage: "display")
+                    Label("支持系统声音与麦克风独立开关与设备选择", systemImage: "mic")
                     Label("MOV 容器 / H.264 编码 / 30 fps", systemImage: "film")
                     Label("项目结构版本 1", systemImage: "doc.text")
                 }

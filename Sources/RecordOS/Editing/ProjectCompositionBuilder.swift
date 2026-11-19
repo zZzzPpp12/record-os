@@ -5,7 +5,8 @@ enum ProjectCompositionBuilder {
     /// Loaded tracks are reused across rebuilds. Editing the timeline rebuilds the
     /// composition often, and re-reading the same media file each time is wasteful.
     @MainActor private static var assetCache: [String: AVURLAsset] = [:]
-    @MainActor private static var trackCache: [String: (asset: AVURLAsset, track: AVAssetTrack)] = [:]
+    @MainActor private static var trackListCache: [String: (asset: AVURLAsset, tracks: [AVAssetTrack])] = [:]
+    private static let maxCachedAssets = 16
 
     /// Builds the timeline composition shared by preview playback and export so
     /// both always render the same clips in the same order.
@@ -38,7 +39,9 @@ enum ProjectCompositionBuilder {
 
             for clip in clips {
                 guard let asset = assetsByID[clip.assetID], let url = urlFor(asset) else { continue }
-                guard let source = await loadTrack(url: url, mediaType: mediaType) else { continue }
+                let rawTrackIndex = clip.sourceTrackIndex ?? 0
+                guard rawTrackIndex >= 0 else { continue }
+                guard let source = await loadTrack(url: url, mediaType: mediaType, trackIndex: rawTrackIndex) else { continue }
 
                 let range = CMTimeRange(start: clip.sourceStart.cmTime, duration: clip.duration.cmTime)
                 do {
@@ -56,11 +59,18 @@ enum ProjectCompositionBuilder {
     @MainActor
     private static func loadTrack(
         url: URL,
-        mediaType: AVMediaType
+        mediaType: AVMediaType,
+        trackIndex: Int
     ) async -> (asset: AVURLAsset, track: AVAssetTrack)? {
-        let cacheKey = url.path + "|" + mediaType.rawValue
-        if let cached = trackCache[cacheKey] {
-            return cached
+        let cacheKey = "\(url.path)|\(mediaType.rawValue)"
+        if let cached = trackListCache[cacheKey] {
+            guard cached.tracks.indices.contains(trackIndex) else { return nil }
+            return (cached.asset, cached.tracks[trackIndex])
+        }
+
+        if assetCache.count >= maxCachedAssets {
+            assetCache.removeAll()
+            trackListCache.removeAll()
         }
 
         let asset: AVURLAsset
@@ -71,13 +81,15 @@ enum ProjectCompositionBuilder {
             assetCache[url.path] = asset
         }
 
-        // Keep the AVURLAsset alive together with its track: a track whose asset
+        // Keep the AVURLAsset alive together with its tracks: a track whose asset
         // is released can no longer be inserted into a composition.
-        guard let avTrack = try? await asset.loadTracks(withMediaType: mediaType).first else {
+        guard let tracks = try? await asset.loadTracks(withMediaType: mediaType) else {
             return nil
         }
-        let entry = (asset: asset, track: avTrack)
-        trackCache[cacheKey] = entry
-        return entry
+        trackListCache[cacheKey] = (asset: asset, tracks: tracks)
+        guard tracks.indices.contains(trackIndex) else {
+            return nil
+        }
+        return (asset: asset, track: tracks[trackIndex])
     }
 }

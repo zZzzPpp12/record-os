@@ -10,14 +10,14 @@ final class MenuBarRecordingIndicator: NSObject {
     private var elapsedTimer: Timer?
     private var elapsedMenuItem: NSMenuItem?
     private var startedAt: Date?
-    private var displayName: String?
+    private var sourceTitle: String?
     private var isLargePhase = false
     private var onStop: (() -> Void)?
 
-    func start(startedAt: Date, displayName: String?, onStop: @escaping () -> Void) {
+    func start(startedAt: Date, sourceTitle: String?, onStop: @escaping () -> Void) {
         stop()
         self.startedAt = startedAt
-        self.displayName = displayName
+        self.sourceTitle = sourceTitle
         self.onStop = onStop
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -26,9 +26,9 @@ final class MenuBarRecordingIndicator: NSObject {
             button.font = .monospacedDigitSystemFont(ofSize: 11, weight: .medium)
             button.image = dotImage(diameter: 8)
             button.title = " 00:00"
-            button.toolTip = displayName.map { "正在录制「\($0)」" } ?? "正在录制屏幕"
+            button.toolTip = sourceTitle.map { "正在录制「\($0)」" } ?? "正在录制屏幕"
         }
-        item.menu = makeMenu(displayName: displayName)
+        item.menu = makeMenu(sourceTitle: sourceTitle)
         statusItem = item
         updateElapsed()
 
@@ -59,14 +59,14 @@ final class MenuBarRecordingIndicator: NSObject {
         statusItem = nil
         elapsedMenuItem = nil
         startedAt = nil
-        displayName = nil
+        sourceTitle = nil
         onStop = nil
     }
 
-    private func makeMenu(displayName: String?) -> NSMenu {
+    private func makeMenu(sourceTitle: String?) -> NSMenu {
         let menu = NSMenu()
 
-        let statusItem = NSMenuItem(title: statusTitle(displayName: displayName), action: nil, keyEquivalent: "")
+        let statusItem = NSMenuItem(title: statusTitle(sourceTitle: sourceTitle), action: nil, keyEquivalent: "")
         statusItem.isEnabled = false
         menu.addItem(statusItem)
         elapsedMenuItem = statusItem
@@ -84,9 +84,9 @@ final class MenuBarRecordingIndicator: NSObject {
         return menu
     }
 
-    private func statusTitle(displayName: String?) -> String {
+    private func statusTitle(sourceTitle: String?) -> String {
         let elapsed = startedAt.map { max(0, Date.now.timeIntervalSince($0)) } ?? 0
-        let source = displayName.map { "正在录制「\($0)」" } ?? "正在录制屏幕"
+        let source = sourceTitle.map { "正在录制「\($0)」" } ?? "正在录制屏幕"
         return "\(source) · \(elapsed.formattedDuration)"
     }
 
@@ -94,7 +94,7 @@ final class MenuBarRecordingIndicator: NSObject {
         guard let startedAt else { return }
         let elapsed = max(0, Date.now.timeIntervalSince(startedAt))
         statusItem?.button?.title = " " + elapsed.formattedDuration
-        elapsedMenuItem?.title = statusTitle(displayName: displayName)
+        elapsedMenuItem?.title = statusTitle(sourceTitle: sourceTitle)
     }
 
     private func toggleBlinkPhase() {
