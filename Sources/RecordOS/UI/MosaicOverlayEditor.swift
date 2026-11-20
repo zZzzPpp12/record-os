@@ -169,6 +169,7 @@ struct MosaicOverlayEditor: View {
                             }
                             .onEnded { _ in
                                 dragStartRects.removeValue(forKey: region.id)
+                                onEndEdit()
                             }
                     )
                     .help("拖动调整马赛克区域大小")

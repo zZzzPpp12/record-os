@@ -11,8 +11,10 @@
 		10B9BAD8F82DA917FC43D849 /* VideoMosaicCompositor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7679B13D8D727DBBA6D950 /* VideoMosaicCompositor.swift */; };
 		172D3448FA9BD842FF717287 /* SharedViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B723EF8CECAC246C1177047 /* SharedViews.swift */; };
 		1D58707B6203D576662B7A6C /* ProjectDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AEC2594C573BB74710A0047 /* ProjectDocument.swift */; };
+		2774365832F7C0D2E46B739C /* EditorKeyboardMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8813C67F713486AC290A00F7 /* EditorKeyboardMonitor.swift */; };
 		46341C4DE00DDBE9123C1584 /* ProjectExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB22669C853129EC327D798A /* ProjectExporter.swift */; };
 		467ACEF9AB8D0E19EC76BF2F /* EditorPlaybackModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */; };
+		53FE2D00A87AD50FE2840AA4 /* EditorTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D8107554F3CFF838FB322C5 /* EditorTimelineView.swift */; };
 		6D3FA8C50BFC2D949636C770 /* MenuBarRecordingIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEC2665F38B959627EEE3CF4 /* MenuBarRecordingIndicator.swift */; };
 		6EC915B2DF9C33B6D53669F7 /* RecorderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD94AA31D19B8A2CF785F26E /* RecorderView.swift */; };
 		897A4503FC577338A17874CC /* RegionSelectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = E72A67FB1BE00D2A61F668CB /* RegionSelectionOverlay.swift */; };
@@ -52,6 +54,8 @@
 		7B723EF8CECAC246C1177047 /* SharedViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedViews.swift; sourceTree = "<group>"; };
 		7D62E4E64C0CC5E951B66AD7 /* EditorPlaybackModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorPlaybackModel.swift; sourceTree = "<group>"; };
 		85545B1376BF2BCFE51379BB /* RecordOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordOSApp.swift; sourceTree = "<group>"; };
+		8813C67F713486AC290A00F7 /* EditorKeyboardMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorKeyboardMonitor.swift; sourceTree = "<group>"; };
+		9D8107554F3CFF838FB322C5 /* EditorTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorTimelineView.swift; sourceTree = "<group>"; };
 		AD94AA31D19B8A2CF785F26E /* RecorderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecorderView.swift; sourceTree = "<group>"; };
 		B0F98D276E208AA60D685CEE /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		CB22669C853129EC327D798A /* ProjectExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectExporter.swift; sourceTree = "<group>"; };
@@ -124,6 +128,8 @@
 			isa = PBXGroup;
 			children = (
 				477F98AC3C896478EAC72F22 /* AppShellView.swift */,
+				8813C67F713486AC290A00F7 /* EditorKeyboardMonitor.swift */,
+				9D8107554F3CFF838FB322C5 /* EditorTimelineView.swift */,
 				B0F98D276E208AA60D685CEE /* EditorView.swift */,
 				5CD78766D8E214D4E481F623 /* LibraryView.swift */,
 				7009F7ECFABF3995C3C318EF /* MosaicOverlayEditor.swift */,
@@ -227,8 +233,10 @@
 			files = (
 				E95C2029EF32289D36E15AA7 /* AppModel.swift in Sources */,
 				C697600BA3B531A6A4FF0ED2 /* AppShellView.swift in Sources */,
+				2774365832F7C0D2E46B739C /* EditorKeyboardMonitor.swift in Sources */,
 				467ACEF9AB8D0E19EC76BF2F /* EditorPlaybackModel.swift in Sources */,
 				A8473E299922762047A956E7 /* EditorSession.swift in Sources */,
+				53FE2D00A87AD50FE2840AA4 /* EditorTimelineView.swift in Sources */,
 				9F2B04E88C0CCF0C9E65E01B /* EditorView.swift in Sources */,
 				E129EAC4FA84B5A17BB94F38 /* LibraryView.swift in Sources */,
 				6D3FA8C50BFC2D949636C770 /* MenuBarRecordingIndicator.swift in Sources */,

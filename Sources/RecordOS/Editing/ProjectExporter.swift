@@ -19,12 +19,13 @@ final class ProjectExporter: ObservableObject {
         defer { isExporting = false }
 
         do {
-            guard let composition = await ProjectCompositionBuilder.makeComposition(
+            guard let built = await ProjectCompositionBuilder.makeComposition(
                 project: project,
                 urlFor: urlFor
             ) else {
                 throw ProjectExportError.emptyTimeline
             }
+            let composition = built.composition
             guard let renderInfo = await VideoMosaicCompositor.renderInfo(
                 for: composition,
                 frameRate: project.frameRate
@@ -48,6 +49,7 @@ final class ProjectExporter: ObservableObject {
                 throw ProjectExportError.sessionUnavailable
             }
             session.videoComposition = videoComposition
+            session.audioMix = built.audioMix
 
             let monitor = Task { @MainActor [weak self] in
                 while !Task.isCancelled {

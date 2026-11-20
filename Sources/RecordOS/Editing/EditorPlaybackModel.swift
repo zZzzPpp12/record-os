@@ -19,7 +19,9 @@ final class EditorPlaybackModel {
     @ObservationIgnored private var mosaicGeneration = 0
     @ObservationIgnored private var observersInstalled = false
     @ObservationIgnored private var playbackRange: ClosedRange<Double>?
+    @ObservationIgnored private var stopAtRangeEnd = false
     @ObservationIgnored private var currentComposition: AVMutableComposition?
+    @ObservationIgnored private var currentAudioTrackIDs: [UUID: CMPersistentTrackID] = [:]
     @ObservationIgnored private var currentRenderInfo: (size: CGSize, fps: Int32)?
 
     init() {
@@ -54,11 +56,13 @@ final class EditorPlaybackModel {
                 guard let self, !self.isScrubbing else { return }
                 let seconds = time.seconds
                 guard seconds.isFinite else { return }
-                if let limit = self.playbackRange,
+                if self.stopAtRangeEnd,
+                   let limit = self.playbackRange,
                    self.isPlaying,
                    seconds >= limit.upperBound - 0.02 {
                     self.player.pause()
                     self.isPlaying = false
+                    self.stopAtRangeEnd = false
                     self.currentTime = limit.upperBound
                     return
                 }
@@ -86,11 +90,12 @@ final class EditorPlaybackModel {
         let targetTime = currentTime
         let wasPlaying = isPlaying
 
-        let composition = await ProjectCompositionBuilder.makeComposition(project: project, urlFor: urlFor)
+        let built = await ProjectCompositionBuilder.makeComposition(project: project, urlFor: urlFor)
         guard buildID == buildGeneration else { return }
 
-        guard let composition else {
+        guard let built else {
             currentComposition = nil
+            currentAudioTrackIDs = [:]
             currentRenderInfo = nil
             player.pause()
             player.replaceCurrentItem(with: nil)
@@ -101,7 +106,9 @@ final class EditorPlaybackModel {
             return
         }
 
+        let composition = built.composition
         currentComposition = composition
+        currentAudioTrackIDs = built.audioTrackIDs
         let renderInfo = await VideoMosaicCompositor.renderInfo(
             for: composition,
             frameRate: project.frameRate
@@ -109,6 +116,7 @@ final class EditorPlaybackModel {
         guard buildID == buildGeneration else { return }
         currentRenderInfo = renderInfo
         let item = AVPlayerItem(asset: composition)
+        item.audioMix = built.audioMix
         if let renderInfo,
            let videoComposition = await VideoMosaicCompositor.makeVideoComposition(
                for: composition,
@@ -162,14 +170,27 @@ final class EditorPlaybackModel {
         }
     }
 
+    func updateAudioMix(for project: ProjectDocument) {
+        guard let item = player.currentItem,
+              let composition = currentComposition else { return }
+        item.audioMix = ProjectCompositionBuilder.makeAudioMix(
+            for: project,
+            composition: composition,
+            audioTrackIDs: currentAudioTrackIDs
+        )
+    }
+
     func togglePlayback() {
         if isPlaying {
             pause()
             return
         }
         if let limit = playbackRange {
-            if currentTime < limit.lowerBound - 0.05 || currentTime >= limit.upperBound - 0.05 {
+            let isSubrange = limit.lowerBound > 0.01 || limit.upperBound < max(duration - 0.01, 0)
+            if isSubrange && abs(currentTime - limit.upperBound) <= 0.05 {
                 seek(to: limit.lowerBound)
+            } else if !isSubrange && currentTime >= duration - 0.05 {
+                seek(to: 0)
             }
         } else if duration > 0, currentTime >= duration - 0.05 {
             seek(to: 0)
@@ -180,12 +201,15 @@ final class EditorPlaybackModel {
     func pause() {
         player.pause()
         isPlaying = false
+        stopAtRangeEnd = false
     }
 
     func play() {
         guard hasContent else { return }
-        if let limit = playbackRange, currentTime < limit.lowerBound - 0.05 {
-            seek(to: limit.lowerBound)
+        if let limit = playbackRange {
+            stopAtRangeEnd = currentTime >= limit.lowerBound - 0.05 && currentTime < limit.upperBound - 0.05
+        } else {
+            stopAtRangeEnd = false
         }
         player.play()
         isPlaying = true

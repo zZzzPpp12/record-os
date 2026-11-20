@@ -40,6 +40,12 @@ struct MediaTime: Codable, Hashable, Comparable, Sendable {
     static func - (lhs: MediaTime, rhs: MediaTime) -> MediaTime {
         .from(CMTimeSubtract(lhs.cmTime, rhs.cmTime))
     }
+
+    func clamped(min minValue: MediaTime = .zero, max maxValue: MediaTime) -> MediaTime {
+        if self < minValue { return minValue }
+        if self > maxValue { return maxValue }
+        return self
+    }
 }
 
 /// Normalized rectangle in top-left video frame coordinates ([0, 1]).
@@ -128,6 +134,44 @@ struct TimelineTrack: Codable, Identifiable, Hashable {
     var kind: TrackKind
     var name: String
     var clips: [TimelineClip]
+    var isMuted: Bool
+    var volume: Float
+
+    init(
+        id: UUID,
+        kind: TrackKind,
+        name: String,
+        clips: [TimelineClip],
+        isMuted: Bool = false,
+        volume: Float = 1.0
+    ) {
+        self.id = id
+        self.kind = kind
+        self.name = name
+        self.clips = clips
+        self.isMuted = isMuted
+        self.volume = min(max(volume, 0.0), 2.0)
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case kind
+        case name
+        case clips
+        case isMuted
+        case volume
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        kind = try container.decode(TrackKind.self, forKey: .kind)
+        name = try container.decode(String.self, forKey: .name)
+        clips = try container.decode([TimelineClip].self, forKey: .clips)
+        isMuted = try container.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
+        let decodedVolume = try container.decodeIfPresent(Float.self, forKey: .volume) ?? 1.0
+        volume = min(max(decodedVolume.isFinite ? decodedVolume : 1.0, 0.0), 2.0)
+    }
 }
 
 /// A video file produced by exporting the edited timeline (with mosaics baked in).

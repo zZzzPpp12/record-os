@@ -10,6 +10,18 @@ struct EditorView: View {
     @State private var mosaicUpdateTask: Task<Void, Never>?
     @State private var exportAlert: ExportAlert?
 
+    private var trackStructureSignature: [TrackStructureKey] {
+        session.project.tracks.map { TrackStructureKey(id: $0.id, kind: $0.kind, clips: $0.clips) }
+    }
+
+    private var trackAudioMixSignature: [TrackAudioMixKey] {
+        session.project.tracks.map { TrackAudioMixKey(id: $0.id, isMuted: $0.isMuted, volume: $0.volume) }
+    }
+
+    private var isModalAlertPresented: Bool {
+        session.errorMessage != nil || exportAlert != nil || exporter.isExporting
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             editorHeader
@@ -21,12 +33,38 @@ struct EditorView: View {
             }
             .frame(maxHeight: .infinity)
             Divider()
-            timeline
+            EditorTimelineView(session: session, playback: playback)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .modifier(
+            EditorKeyboardMonitor(
+                isEnabled: !isModalAlertPresented,
+                onSpace: {
+                    playback.togglePlayback()
+                },
+                onSplitAtPlayhead: {
+                    session.splitAtPlayhead(MediaTime(seconds: playback.currentTime))
+                },
+                onSetRangeStart: {
+                    session.setRangeStart(to: MediaTime(seconds: playback.currentTime))
+                },
+                onSetRangeEnd: {
+                    session.setRangeEnd(to: MediaTime(seconds: playback.currentTime))
+                },
+                onDelete: {
+                    handleKeyboardDelete()
+                },
+                onStepFrame: { delta in
+                    playback.skip(by: delta)
+                }
+            )
+        )
         .task { await rebuildPlayback(for: session.project) }
-        .onChange(of: session.project.tracks) { _, _ in
+        .onChange(of: trackStructureSignature) { _, _ in
             Task { await rebuildPlayback(for: session.project) }
+        }
+        .onChange(of: trackAudioMixSignature) { _, _ in
+            playback.updateAudioMix(for: session.project)
         }
         .onChange(of: session.project.assets) { _, _ in
             Task { await rebuildPlayback(for: session.project) }
@@ -63,6 +101,18 @@ struct EditorView: View {
         }
     }
 
+    private func handleKeyboardDelete() {
+        if session.hasPartialSelectedRange {
+            if let jumpTime = session.deleteSelectedRange() {
+                playback.seek(to: jumpTime.seconds)
+            }
+        } else if session.selectedClip != nil {
+            if let jumpTime = session.deleteSelectedClip() {
+                playback.seek(to: jumpTime.seconds)
+            }
+        }
+    }
+
     private var editorHeader: some View {
         HStack(spacing: 12) {
             Button {
@@ -85,7 +135,7 @@ struct EditorView: View {
                         .foregroundStyle(.secondary)
                         .monospacedDigit()
                 }
-                .help("正在渲染时间线与马赛克效果")
+                .help("正在渲染时间线、混音与马赛克效果")
             } else {
                 Button {
                     beginExport()
@@ -94,7 +144,7 @@ struct EditorView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!playback.hasContent)
-                .help(playback.hasContent ? "导出包含剪辑与马赛克的视频" : "时间线为空，暂无可导出内容")
+                .help(playback.hasContent ? "导出包含剪辑、混音与马赛克的视频" : "时间线为空，暂无可导出内容")
             }
         }
         .padding(.horizontal, 20)
@@ -138,7 +188,7 @@ struct EditorView: View {
         panel.allowsOtherFileTypes = true
         panel.canCreateDirectories = true
         panel.nameFieldStringValue = "\(sanitizedFileName(session.project.name)).mov"
-        panel.message = "选择导出视频的保存位置（包含当前剪辑与马赛克效果）"
+        panel.message = "选择导出视频的保存位置（包含当前剪辑、音轨混音与马赛克效果）"
         panel.prompt = "导出"
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
@@ -180,7 +230,7 @@ struct EditorView: View {
                 mosaicInspectorSection
 
                 Divider()
-                Text("拖动左右蓝色分割点确定时间段；点击「添加马赛克」后在视频画面上框选要遮挡的区域即可完成打码。")
+                Text("可用 I / O 键或拖动蓝色分割点确定选区，按 S 在播放头分割；删除范围会自动波纹收拢后续片段，并在左侧轨道头独立调节音轨静音与音量。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -317,134 +367,6 @@ struct EditorView: View {
         }
     }
 
-    private var timeline: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("时间线").font(.subheadline.weight(.semibold))
-                Spacer()
-                Text("拖动前/后分割点选择范围 · 支持分段马赛克打码 · 非破坏式编辑 · 自动保存")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            ScrollView([.horizontal, .vertical]) {
-                VStack(alignment: .leading, spacing: 7) {
-                    ForEach(session.project.tracks) { track in
-                        HStack(spacing: 8) {
-                            Text(track.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 56, alignment: .leading)
-                            ForEach(track.clips) { clip in
-                                clipButton(for: clip, track: track)
-                            }
-                        }
-                        .frame(height: 32)
-                    }
-
-                    if !session.project.mosaicRegions.isEmpty {
-                        mosaicTimelineRow
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 12)
-        .frame(height: timelineHeight)
-        .background(Color(nsColor: .controlBackgroundColor).opacity(0.65))
-    }
-
-    private var timelineHeight: CGFloat {
-        let trackRows = max(1, session.project.tracks.count)
-        let mosaicRows = session.project.mosaicRegions.isEmpty ? 0 : 1
-        let totalRows = trackRows + mosaicRows
-        return min(240, max(142, CGFloat(totalRows) * 39 + 54))
-    }
-
-    private var mosaicTimelineRow: some View {
-        let totalDuration = max(session.project.duration.seconds, 0.1)
-        let trackWidth = max(240, totalDuration * 28)
-
-        return HStack(spacing: 8) {
-            Text("打码")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 56, alignment: .leading)
-
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 5)
-                    .fill(Color.primary.opacity(0.05))
-                    .frame(width: trackWidth, height: 28)
-
-                ForEach(Array(session.project.mosaicRegions.enumerated()), id: \.element.id) { index, region in
-                    let startRatio = region.startTime.seconds / totalDuration
-                    let lengthRatio = max(region.duration.seconds / totalDuration, 0.02)
-                    let blockX = startRatio * trackWidth
-                    let blockWidth = max(26, lengthRatio * trackWidth)
-                    let isSelected = session.selectedMosaicID == region.id
-
-                    Button {
-                        session.selectedMosaicID = region.id
-                        session.rangeStart = region.startTime
-                        session.rangeEnd = region.endTime
-                        playback.seek(to: region.startTime.seconds)
-                    } label: {
-                        RoundedRectangle(cornerRadius: 5)
-                            .fill(isSelected ? Color.orange : Color.orange.opacity(0.55))
-                            .frame(width: blockWidth, height: 24)
-                            .overlay(alignment: .leading) {
-                                Text("马赛克 \(index + 1)")
-                                    .font(.caption2.weight(.medium))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .lineLimit(1)
-                            }
-                            .overlay {
-                                if isSelected {
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .strokeBorder(Color.white.opacity(0.9), lineWidth: 1.5)
-                                }
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .offset(x: blockX)
-                    .help("选中马赛克 \(index + 1)（\(region.startTime.seconds.formattedDuration) – \(region.endTime.seconds.formattedDuration)）")
-                }
-            }
-        }
-        .frame(height: 30)
-    }
-
-    private func clipButton(for clip: TimelineClip, track: TimelineTrack) -> some View {
-        Button {
-            session.selectedClipID = clip.id
-            playback.seek(to: clip.timelineStart.seconds)
-        } label: {
-            RoundedRectangle(cornerRadius: 5)
-                .fill(session.selectedClipID == clip.id ? Color.accentColor : Color.accentColor.opacity(0.42))
-                .frame(width: max(110, clip.duration.seconds * 28), height: 28)
-                .overlay(alignment: .leading) {
-                    Text(clipLabel(for: track))
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.white)
-                        .padding(.leading, 8)
-                        .lineLimit(1)
-                }
-                .overlay {
-                    if session.selectedClipID == clip.id {
-                        RoundedRectangle(cornerRadius: 5)
-                            .strokeBorder(Color.white.opacity(0.9), lineWidth: 2)
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-        .help("选中片段并定位到 \(clip.timelineStart.seconds.formattedDuration)")
-    }
-
-    private func clipLabel(for track: TimelineTrack) -> String {
-        track.kind == .audio ? track.name : "屏幕录制"
-    }
-
     private func propertyRow(_ name: String, value: String) -> some View {
         HStack {
             Text(name).foregroundStyle(.secondary)
@@ -470,6 +392,18 @@ struct EditorView: View {
         }
         playback.setPlaybackRange(start...end)
     }
+}
+
+private struct TrackStructureKey: Equatable {
+    let id: UUID
+    let kind: TrackKind
+    let clips: [TimelineClip]
+}
+
+private struct TrackAudioMixKey: Equatable {
+    let id: UUID
+    let isMuted: Bool
+    let volume: Float
 }
 
 private struct EditorPreviewPane: View {
@@ -561,106 +495,148 @@ private struct EditorPreviewPane: View {
             )
             .padding(.horizontal, 18)
 
-            HStack(spacing: 10) {
-                Button {
-                    playback.skip(by: -5)
-                } label: {
-                    Image(systemName: "gobackward.5")
-                        .font(.system(size: 16))
-                }
-                .buttonStyle(.plain)
-                .help("后退 5 秒")
-                .disabled(!playback.hasContent)
-
-                Button(action: playback.togglePlayback) {
-                    Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 40, height: 40)
-                        .background(Color.accentColor, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .help(playback.isPlaying ? "暂停" : "播放")
-                .disabled(!playback.hasContent)
-
-                Button {
-                    playback.skip(by: 5)
-                } label: {
-                    Image(systemName: "goforward.5")
-                        .font(.system(size: 16))
-                }
-                .buttonStyle(.plain)
-                .help("前进 5 秒")
-                .disabled(!playback.hasContent)
-
-                Text("\(playback.currentTime.formattedDuration) / \(playback.duration.formattedDuration)")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .padding(.leading, 2)
-
-                Spacer(minLength: 6)
-
-                Text(rangeSummary)
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Button {
-                    if session.isMosaicDrawMode {
-                        session.isMosaicDrawMode = false
-                    } else {
-                        playback.pause()
-                        session.isMosaicDrawMode = true
-                    }
-                } label: {
-                    Label(session.isMosaicDrawMode ? "框选中…" : "添加马赛克", systemImage: "checkerboard.rectangle")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(session.isMosaicDrawMode ? .orange : .accentColor)
-                .controlSize(.small)
-                .disabled(!playback.hasContent || !session.hasSelectedRange)
-                .help("在画面上框选区域，对当前分割点时间段打马赛克")
-
-                Button("切分") {
-                    session.splitAtRangeMarkers()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.hasInteriorSplitMarkers)
-                .help("按进度条上的前/后分割点将片段切分开")
-
-                Button("删除范围", role: .destructive) {
-                    session.deleteSelectedRange()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.hasSelectedRange)
-                .help("删除前/后分割点之间的内容")
-
-                Button("仅保留所选") {
-                    session.keepOnlySelectedRange()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.hasSelectedRange)
-                .help("只保留前/后分割点之间的内容")
-
-                Button("撤销") {
-                    session.undo()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(!session.canUndo)
-            }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 12)
+            transportBar
+                .padding(.horizontal, 22)
+                .padding(.bottom, 12)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.035))
     }
 
+    private var transportBar: some View {
+        HStack(spacing: 8) {
+            Button {
+                playback.skip(by: -5)
+            } label: {
+                Image(systemName: "gobackward.5")
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
+            .help("后退 5 秒 (⇧←)")
+            .disabled(!playback.hasContent)
+
+            Button(action: playback.togglePlayback) {
+                Image(systemName: playback.isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(Color.accentColor, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .help(playback.isPlaying ? "暂停 (空格)" : "播放 (空格)")
+            .disabled(!playback.hasContent)
+
+            Button {
+                playback.skip(by: 5)
+            } label: {
+                Image(systemName: "goforward.5")
+                    .font(.system(size: 16))
+            }
+            .buttonStyle(.plain)
+            .help("前进 5 秒 (⇧→)")
+            .disabled(!playback.hasContent)
+
+            Text("\(playback.currentTime.formattedDuration) / \(playback.duration.formattedDuration)")
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 2)
+
+            Spacer(minLength: 6)
+
+            Button("起点") {
+                session.setRangeStart(to: MediaTime(seconds: playback.currentTime))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!playback.hasContent)
+            .help("将前分割点设为当前播放头 (I)")
+
+            Button("终点") {
+                session.setRangeEnd(to: MediaTime(seconds: playback.currentTime))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!playback.hasContent)
+            .help("将后分割点设为当前播放头 (O)")
+
+            Text(rangeSummary)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            Button {
+                if session.isMosaicDrawMode {
+                    session.isMosaicDrawMode = false
+                } else {
+                    playback.pause()
+                    session.isMosaicDrawMode = true
+                }
+            } label: {
+                Label(session.isMosaicDrawMode ? "框选中…" : "添加马赛克", systemImage: "checkerboard.rectangle")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(session.isMosaicDrawMode ? .orange : .accentColor)
+            .controlSize(.small)
+            .disabled(!playback.hasContent || !session.hasSelectedRange)
+            .help("在画面上框选区域，对当前分割点时间段打马赛克")
+
+            Button("分割") {
+                session.splitAtPlayhead(MediaTime(seconds: playback.currentTime))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .keyboardShortcut("b", modifiers: [.command])
+            .disabled(!session.canSplit(at: MediaTime(seconds: playback.currentTime)))
+            .help("在当前播放头处分割片段 (S / ⌘B)")
+
+            Button("按选区切分") {
+                session.splitAtRangeMarkers()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!session.hasInteriorSplitMarkers)
+            .help("按进度条上的前/后分割点将片段切分开")
+
+            Button("删除范围", role: .destructive) {
+                if let jumpTime = session.deleteSelectedRange() {
+                    playback.seek(to: jumpTime.seconds)
+                }
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!session.hasSelectedRange)
+            .help("波纹删除前/后分割点之间的内容并自动收拢后续片段")
+
+            Button("仅保留所选") {
+                session.keepOnlySelectedRange()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(!session.hasSelectedRange)
+            .help("只保留前/后分割点之间的内容")
+
+            Button("撤销") {
+                session.undo()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .keyboardShortcut("z", modifiers: [.command])
+            .disabled(!session.canUndo)
+            .help("撤销上一步操作 (⌘Z)")
+
+            Button("重做") {
+                session.redo()
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .keyboardShortcut("z", modifiers: [.command, .shift])
+            .disabled(!session.canRedo)
+            .help("重做已撤销的操作 (⇧⌘Z)")
+        }
+    }
+
     private var rangeSummary: String {
-        "分割点 \(session.rangeStart.seconds.formattedDuration) – \(session.rangeEnd.seconds.formattedDuration)"
+        "\(session.rangeStart.seconds.formattedDuration)–\(session.rangeEnd.seconds.formattedDuration)"
     }
 }
 

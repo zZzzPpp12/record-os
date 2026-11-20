@@ -13,7 +13,10 @@ final class EditorSession: ObservableObject, Identifiable {
 
     let id: UUID
     private let store: ProjectStore
+    private let maxHistoryCount = 50
     private var undoStack: [ProjectDocument] = []
+    private var redoStack: [ProjectDocument] = []
+    private var activeCheckpointProject: ProjectDocument?
 
     init(project: ProjectDocument, store: ProjectStore) {
         self.project = project
@@ -26,8 +29,13 @@ final class EditorSession: ObservableObject, Identifiable {
     }
 
     var canUndo: Bool { !undoStack.isEmpty }
+    var canRedo: Bool { !redoStack.isEmpty }
 
     var hasSelectedRange: Bool { rangeEnd > rangeStart }
+
+    var hasPartialSelectedRange: Bool {
+        hasSelectedRange && (rangeStart > .zero || rangeEnd < project.duration)
+    }
 
     var hasInteriorSplitMarkers: Bool {
         let points = [rangeStart, rangeEnd]
@@ -38,11 +46,62 @@ final class EditorSession: ObservableObject, Identifiable {
         }
     }
 
+    func canSplit(at time: MediaTime) -> Bool {
+        guard time > .zero && time < project.duration else { return false }
+        return project.tracks.contains { track in
+            track.clips.contains { clip in
+                time > clip.timelineStart && time < clip.timelineEnd
+            }
+        }
+    }
+
+    var selectedClip: TimelineClip? {
+        guard let selectedClipID else { return nil }
+        for track in project.tracks {
+            if let clip = track.clips.first(where: { $0.id == selectedClipID }) {
+                return clip
+            }
+        }
+        return nil
+    }
+
     var selectedRangeLength: MediaTime { rangeEnd - rangeStart }
 
     var selectedMosaic: MosaicRegion? {
         guard let selectedMosaicID else { return nil }
         return project.mosaicRegions.first(where: { $0.id == selectedMosaicID })
+    }
+
+    func selectClip(id: UUID?) {
+        selectedClipID = id
+    }
+
+    func setRangeStart(to time: MediaTime) {
+        let duration = project.duration
+        guard duration > .zero else {
+            resetRange()
+            return
+        }
+        let minGap = min(MediaTime(seconds: 0.1), duration)
+        let clamped = time.clamped(min: .zero, max: max(.zero, duration - minGap))
+        rangeStart = clamped
+        if rangeEnd < clamped + minGap {
+            rangeEnd = duration
+        }
+    }
+
+    func setRangeEnd(to time: MediaTime) {
+        let duration = project.duration
+        guard duration > .zero else {
+            resetRange()
+            return
+        }
+        let minGap = min(MediaTime(seconds: 0.1), duration)
+        let clamped = time.clamped(min: minGap, max: duration)
+        rangeEnd = clamped
+        if rangeStart > clamped - minGap {
+            rangeStart = .zero
+        }
     }
 
     func addMosaicRegion(rect: NormalizedRect) {
@@ -102,17 +161,11 @@ final class EditorSession: ObservableObject, Identifiable {
     }
 
     func beginMosaicUndoCheckpoint() {
-        if undoStack.last != project {
-            undoStack.append(project)
-        }
+        beginInteractiveCheckpoint()
     }
 
     func endMosaicEditSession() {
-        // Drop a no-op checkpoint if the gesture ended without changing anything.
-        if undoStack.last == project, !undoStack.isEmpty {
-            undoStack.removeLast()
-        }
-        persist()
+        endInteractiveCheckpoint()
     }
 
     func deleteMosaicRegion(id: UUID) {
@@ -125,33 +178,112 @@ final class EditorSession: ObservableObject, Identifiable {
         }
     }
 
-    func deleteSelectedRange() {
+    func toggleTrackMute(trackID: UUID) {
+        guard let index = project.tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        var next = project
+        next.tracks[index].isMuted.toggle()
+        commit(next)
+    }
+
+    func beginTrackVolumeCheckpoint() {
+        beginInteractiveCheckpoint()
+    }
+
+    func updateTrackVolume(trackID: UUID, volume: Float, recordUndo: Bool = false) {
+        guard let index = project.tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        let clamped = min(max(volume.isFinite ? volume : 1.0, 0.0), 2.0)
+        var next = project
+        let didChangeVolume = abs(next.tracks[index].volume - clamped) > 0.001
+        let shouldUnmute = next.tracks[index].isMuted && clamped > 0.001
+        guard didChangeVolume || shouldUnmute else { return }
+        next.tracks[index].volume = clamped
+        if shouldUnmute {
+            next.tracks[index].isMuted = false
+        }
+
+        if recordUndo {
+            commit(next)
+        } else {
+            project = next
+        }
+    }
+
+    func endTrackVolumeEditSession() {
+        endInteractiveCheckpoint()
+    }
+
+    @discardableResult
+    func deleteSelectedRange() -> MediaTime? {
         guard hasSelectedRange else {
             errorMessage = "请先拖动两个游标选择要删除的范围。"
-            return
+            return nil
         }
+        return deleteTimeRange(start: rangeStart, end: rangeEnd)
+    }
+
+    @discardableResult
+    func deleteSelectedClip() -> MediaTime? {
+        guard let selectedClipID else {
+            errorMessage = "请先在时间线上选择一个片段。"
+            return nil
+        }
+        for track in project.tracks {
+            if let clip = track.clips.first(where: { $0.id == selectedClipID }) {
+                if track.kind == .audio {
+                    removeSingleClip(trackID: track.id, clipID: clip.id)
+                    return nil
+                }
+                return deleteTimeRange(start: clip.timelineStart, end: clip.timelineEnd)
+            }
+        }
+        errorMessage = "请先在时间线上选择一个片段。"
+        return nil
+    }
+
+    func removeSingleClip(trackID: UUID, clipID: UUID) {
+        guard let trackIndex = project.tracks.firstIndex(where: { $0.id == trackID }) else { return }
+        var next = project
+        next.tracks[trackIndex].clips.removeAll(where: { $0.id == clipID })
+        guard next.tracks != project.tracks else { return }
+        commit(next)
+        clampRangeToProjectDuration()
+        refreshSelection()
+    }
+
+    @discardableResult
+    func rippleDeleteTimeRange(start: MediaTime, end: MediaTime) -> MediaTime? {
+        deleteTimeRange(start: start, end: end)
+    }
+
+    @discardableResult
+    private func deleteTimeRange(start: MediaTime, end: MediaTime) -> MediaTime? {
+        guard end > start else { return nil }
 
         var next = project
         for index in next.tracks.indices {
             next.tracks[index].clips = Self.clipsByRemoving(
-                rangeStart: rangeStart,
-                rangeEnd: rangeEnd,
-                from: next.tracks[index].clips
+                rangeStart: start,
+                rangeEnd: end,
+                from: next.tracks[index].clips,
+                ripple: true
             )
         }
         next.mosaicRegions = Self.mosaicsByRemoving(
-            rangeStart: rangeStart,
-            rangeEnd: rangeEnd,
-            from: next.mosaicRegions
+            rangeStart: start,
+            rangeEnd: end,
+            from: next.mosaicRegions,
+            ripple: true
         )
         guard next.tracks != project.tracks || next.mosaicRegions != project.mosaicRegions else {
             errorMessage = "所选范围内没有可删除的内容。"
-            return
+            return nil
         }
 
         commit(next)
         resetRange()
-        refreshSelection()
+        selectClipNearest(to: start)
+        refreshMosaicSelection()
+        return min(start, project.duration)
     }
 
     func keepOnlySelectedRange() {
@@ -215,12 +347,51 @@ final class EditorSession: ObservableObject, Identifiable {
         }
 
         commit(next)
-        refreshSelection()
+        if let anchor = splitPoints.first {
+            selectClipNearest(to: anchor)
+        } else {
+            refreshSelection()
+        }
+    }
+
+    func splitAtPlayhead(_ time: MediaTime) {
+        guard time > .zero && time < project.duration else {
+            errorMessage = "请将播放头移动到片段内部后再分割。"
+            return
+        }
+
+        var next = project
+        for index in next.tracks.indices {
+            next.tracks[index].clips = Self.clipsBySplitting(
+                at: [time],
+                from: next.tracks[index].clips
+            )
+        }
+        guard next.tracks != project.tracks else {
+            errorMessage = "当前播放头未落在任何片段内部。"
+            return
+        }
+
+        commit(next)
+        selectClipNearest(to: time)
     }
 
     func undo() {
         guard let previous = undoStack.popLast() else { return }
+        redoStack.append(project)
         project = previous
+        persist()
+        resetRange()
+        refreshSelection()
+    }
+
+    func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(project)
+        if undoStack.count > maxHistoryCount {
+            undoStack.removeFirst(undoStack.count - maxHistoryCount)
+        }
+        project = next
         persist()
         resetRange()
         refreshSelection()
@@ -259,13 +430,75 @@ final class EditorSession: ObservableObject, Identifiable {
         persist()
     }
 
+    private func beginInteractiveCheckpoint() {
+        if activeCheckpointProject == nil {
+            activeCheckpointProject = project
+        }
+    }
+
+    private func endInteractiveCheckpoint() {
+        if let base = activeCheckpointProject {
+            activeCheckpointProject = nil
+            if base != project {
+                pushUndo(base)
+                redoStack.removeAll()
+                persist()
+            }
+            return
+        }
+        persist()
+    }
+
+    private func pushUndo(_ snapshot: ProjectDocument) {
+        undoStack.append(snapshot)
+        if undoStack.count > maxHistoryCount {
+            undoStack.removeFirst(undoStack.count - maxHistoryCount)
+        }
+    }
+
     private func resetRange() {
         rangeStart = .zero
         rangeEnd = project.duration
     }
 
+    private func clampRangeToProjectDuration() {
+        let duration = project.duration
+        rangeStart = rangeStart.clamped(max: duration)
+        rangeEnd = rangeEnd.clamped(max: duration)
+        if rangeEnd < rangeStart {
+            rangeStart = .zero
+            rangeEnd = duration
+        }
+    }
+
+    private func selectClipNearest(to time: MediaTime) {
+        let preferredTracks = project.tracks.filter { $0.kind == .video } + project.tracks.filter { $0.kind != .video }
+        for track in preferredTracks {
+            let sorted = track.clips.sorted { $0.timelineStart < $1.timelineStart }
+            if let exactOrAfter = sorted.first(where: { $0.timelineStart >= time || ($0.timelineStart <= time && $0.timelineEnd > time) }) {
+                selectedClipID = exactOrAfter.id
+                return
+            }
+            if let last = sorted.last {
+                selectedClipID = last.id
+                return
+            }
+        }
+        selectedClipID = nil
+    }
+
     private func refreshSelection() {
-        selectedClipID = project.tracks.first(where: { $0.kind == .video })?.clips.first?.id
+        let allClipIDs = Set(project.tracks.flatMap(\.clips).map(\.id))
+        if let selectedClipID, allClipIDs.contains(selectedClipID) {
+            // Preserve current selection if the clip still exists.
+        } else {
+            selectedClipID = project.tracks.first(where: { $0.kind == .video })?.clips.first?.id
+                ?? project.tracks.flatMap(\.clips).first?.id
+        }
+        refreshMosaicSelection()
+    }
+
+    private func refreshMosaicSelection() {
         if let currentMosaic = selectedMosaicID,
            !project.mosaicRegions.contains(where: { $0.id == currentMosaic }) {
             selectedMosaicID = project.mosaicRegions.first?.id
@@ -275,7 +508,8 @@ final class EditorSession: ObservableObject, Identifiable {
     }
 
     private func commit(_ updated: ProjectDocument) {
-        undoStack.append(project)
+        pushUndo(project)
+        redoStack.removeAll()
         project = updated
         persist()
     }
@@ -291,15 +525,26 @@ final class EditorSession: ObservableObject, Identifiable {
     private static func clipsByRemoving(
         rangeStart: MediaTime,
         rangeEnd: MediaTime,
-        from clips: [TimelineClip]
+        from clips: [TimelineClip],
+        ripple: Bool
     ) -> [TimelineClip] {
+        let removedDuration = rangeEnd - rangeStart
         var result: [TimelineClip] = []
         for clip in clips {
             let clipStart = clip.timelineStart
             let clipEnd = clip.timelineEnd
 
-            if clipEnd <= rangeStart || clipStart >= rangeEnd {
+            if clipEnd <= rangeStart {
                 result.append(clip)
+                continue
+            }
+
+            if clipStart >= rangeEnd {
+                var kept = clip
+                if ripple {
+                    kept.timelineStart = (clipStart - removedDuration).clamped(max: clipStart)
+                }
+                result.append(kept)
                 continue
             }
 
@@ -313,7 +558,7 @@ final class EditorSession: ObservableObject, Identifiable {
 
                 var tail = clip
                 tail.id = UUID()
-                tail.timelineStart = rangeEnd
+                tail.timelineStart = ripple ? rangeStart : rangeEnd
                 tail.sourceStart = clip.sourceStart + (rangeEnd - clipStart)
                 tail.duration = clipEnd - rangeEnd
                 result.append(tail)
@@ -324,7 +569,7 @@ final class EditorSession: ObservableObject, Identifiable {
             } else if trimsRightEdge {
                 var tail = clip
                 tail.id = UUID()
-                tail.timelineStart = rangeEnd
+                tail.timelineStart = ripple ? rangeStart : rangeEnd
                 tail.sourceStart = clip.sourceStart + (rangeEnd - clipStart)
                 tail.duration = clipEnd - rangeEnd
                 result.append(tail)
@@ -404,12 +649,26 @@ final class EditorSession: ObservableObject, Identifiable {
     private static func mosaicsByRemoving(
         rangeStart: MediaTime,
         rangeEnd: MediaTime,
-        from regions: [MosaicRegion]
+        from regions: [MosaicRegion],
+        ripple: Bool
     ) -> [MosaicRegion] {
+        let removedDuration = rangeEnd - rangeStart
         var result: [MosaicRegion] = []
         for region in regions {
-            if region.endTime <= rangeStart || region.startTime >= rangeEnd {
+            if region.endTime <= rangeStart {
                 result.append(region)
+                continue
+            }
+
+            if region.startTime >= rangeEnd {
+                var shifted = region
+                if ripple {
+                    shifted.startTime = (region.startTime - removedDuration).clamped(max: region.startTime)
+                    shifted.endTime = (region.endTime - removedDuration).clamped(max: region.endTime)
+                }
+                if shifted.endTime > shifted.startTime {
+                    result.append(shifted)
+                }
                 continue
             }
 
@@ -417,14 +676,25 @@ final class EditorSession: ObservableObject, Identifiable {
             let trimsRight = region.endTime > rangeEnd
 
             if trimsLeft && trimsRight {
-                var head = region
-                head.endTime = rangeStart
-                result.append(head)
+                if ripple {
+                    let mergedEnd = (region.endTime - removedDuration).clamped(max: region.endTime)
+                    if mergedEnd > region.startTime {
+                        var merged = region
+                        merged.endTime = mergedEnd
+                        result.append(merged)
+                    }
+                } else {
+                    var head = region
+                    head.endTime = rangeStart
+                    result.append(head)
 
-                var tail = region
-                tail.id = UUID()
-                tail.startTime = rangeEnd
-                result.append(tail)
+                    var tail = region
+                    tail.id = UUID()
+                    tail.startTime = rangeEnd
+                    if tail.endTime > tail.startTime {
+                        result.append(tail)
+                    }
+                }
             } else if trimsLeft {
                 var head = region
                 head.endTime = rangeStart
@@ -432,8 +702,11 @@ final class EditorSession: ObservableObject, Identifiable {
             } else if trimsRight {
                 var tail = region
                 tail.id = UUID()
-                tail.startTime = rangeEnd
-                result.append(tail)
+                tail.startTime = ripple ? rangeStart : rangeEnd
+                tail.endTime = ripple ? (region.endTime - removedDuration) : region.endTime
+                if tail.endTime > tail.startTime {
+                    result.append(tail)
+                }
             }
         }
         return result
