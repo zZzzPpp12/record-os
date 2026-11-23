@@ -9,6 +9,8 @@ struct EditorView: View {
     @StateObject private var exporter = ProjectExporter()
     @State private var mosaicUpdateTask: Task<Void, Never>?
     @State private var exportAlert: ExportAlert?
+    @State private var showSavedConfirmation = false
+    @State private var savedConfirmationTask: Task<Void, Never>?
 
     private var trackStructureSignature: [TrackStructureKey] {
         session.project.tracks.map { TrackStructureKey(id: $0.id, kind: $0.kind, clips: $0.clips) }
@@ -89,6 +91,10 @@ struct EditorView: View {
         .onChange(of: playback.duration) { _, _ in updatePlaybackRange() }
         .onDisappear {
             mosaicUpdateTask?.cancel()
+            savedConfirmationTask?.cancel()
+            if session.hasUnsavedChanges {
+                session.saveNow()
+            }
             playback.teardown()
         }
         .alert("剪辑操作", isPresented: Binding(
@@ -116,15 +122,30 @@ struct EditorView: View {
     private var editorHeader: some View {
         HStack(spacing: 12) {
             Button {
-                appModel.activeEditor = nil
+                if !session.hasUnsavedChanges || session.saveNow() {
+                    appModel.activeEditor = nil
+                }
             } label: {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.plain)
-            .help("返回项目库")
+            .help("保存并返回项目库")
             Text(session.project.name)
                 .font(.headline)
+
+            saveStatusLabel
+
             Spacer()
+
+            Button {
+                performSave()
+            } label: {
+                Label(showSavedConfirmation ? "已保存" : "保存", systemImage: showSavedConfirmation ? "checkmark.circle.fill" : "square.and.arrow.down")
+            }
+            .buttonStyle(.bordered)
+            .keyboardShortcut("s", modifiers: [.command])
+            .disabled(exporter.isExporting)
+            .help("保存当前剪辑进度到项目 (⌘S)")
 
             if exporter.isExporting {
                 HStack(spacing: 8) {
@@ -159,6 +180,43 @@ struct EditorView: View {
             Button("好", role: .cancel) { exportAlert = nil }
         } message: {
             Text(exportAlertMessage)
+        }
+    }
+
+    @ViewBuilder
+    private var saveStatusLabel: some View {
+        if showSavedConfirmation {
+            Text("已保存")
+                .font(.caption)
+                .foregroundStyle(.green)
+                .transition(.opacity)
+        } else if session.hasUnsavedChanges {
+            Text("有未保存的更改")
+                .font(.caption)
+                .foregroundStyle(.orange)
+        } else if let savedAt = session.lastSavedAt {
+            Text("已保存于 \(savedAt.formatted(date: .omitted, time: .shortened))")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            Text("自动保存已开启")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func performSave() {
+        guard session.saveNow() else { return }
+        savedConfirmationTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showSavedConfirmation = true
+        }
+        savedConfirmationTask = Task {
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                showSavedConfirmation = false
+            }
         }
     }
 

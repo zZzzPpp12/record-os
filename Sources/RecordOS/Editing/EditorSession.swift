@@ -9,6 +9,8 @@ final class EditorSession: ObservableObject, Identifiable {
     @Published var isMosaicDrawMode = false
     @Published var rangeStart = MediaTime.zero
     @Published var rangeEnd = MediaTime.zero
+    @Published private(set) var hasUnsavedChanges = false
+    @Published private(set) var lastSavedAt: Date?
     @Published private(set) var errorMessage: String?
 
     let id: UUID
@@ -157,6 +159,7 @@ final class EditorSession: ObservableObject, Identifiable {
             // Interactive drag: update in memory only so we don't rewrite
             // project.json on every mouse move. The edit session persists on end.
             project = updated
+            hasUnsavedChanges = true
         }
     }
 
@@ -205,6 +208,7 @@ final class EditorSession: ObservableObject, Identifiable {
             commit(next)
         } else {
             project = next
+            hasUnsavedChanges = true
         }
     }
 
@@ -401,6 +405,21 @@ final class EditorSession: ObservableObject, Identifiable {
         errorMessage = nil
     }
 
+    @discardableResult
+    func saveNow() -> Bool {
+        if let base = activeCheckpointProject {
+            activeCheckpointProject = nil
+            if base != project {
+                pushUndo(base)
+                redoStack.removeAll()
+                return persist()
+            }
+            hasUnsavedChanges = false
+            return true
+        }
+        return persist()
+    }
+
     func syncProjectMetadata(_ updated: ProjectDocument) {
         project.name = updated.name
         project.updatedAt = updated.updatedAt
@@ -443,6 +462,8 @@ final class EditorSession: ObservableObject, Identifiable {
                 pushUndo(base)
                 redoStack.removeAll()
                 persist()
+            } else {
+                hasUnsavedChanges = false
             }
             return
         }
@@ -514,11 +535,17 @@ final class EditorSession: ObservableObject, Identifiable {
         persist()
     }
 
-    private func persist() {
+    @discardableResult
+    private func persist() -> Bool {
         do {
             try store.save(project)
+            hasUnsavedChanges = false
+            lastSavedAt = .now
+            return true
         } catch {
+            hasUnsavedChanges = true
             errorMessage = "保存项目失败：\(error.localizedDescription)"
+            return false
         }
     }
 
