@@ -14,15 +14,22 @@
 - 视频画面内任意区域马赛克打码，可按时段生效并随剪辑同步
 - 将剪辑、音轨混音与马赛克效果导出为本地 MOV 视频
 - 项目库中区分「源文件」与「剪辑文件」，可分别播放、定位和移除记录
+- 设置页展示当前版本号，支持从 GitHub Releases 自动检测并下载新版安装包
 - 清晰分层的 Capture、Project、Editing、UI 模块
 
-## 构建
+## 构建与打包
 
 需要 Xcode 26 和 macOS 15 SDK：
 
 ```sh
 xcodegen generate
 xcodebuild -project RecordOS.xcodeproj -scheme RecordOS -configuration Debug build
+```
+
+一键打包 Release 通用架构（`arm64` + `x86_64`）`.dmg` 安装包（输出至 `dist/` 目录）：
+
+```sh
+./scripts/build_dmg.sh
 ```
 
 首次录制时，macOS 会请求屏幕录制权限；开启麦克风录制时会请求麦克风权限。当前采集能力已支持整个屏幕、应用窗口与屏幕框选区域录制。

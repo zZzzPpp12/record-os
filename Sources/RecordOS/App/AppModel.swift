@@ -34,6 +34,7 @@ final class AppModel: ObservableObject {
 
     let projectStore: ProjectStore
     let recorder: ScreenRecorder
+    let updateChecker: AppUpdateChecker
 
     private let menuBarIndicator = MenuBarRecordingIndicator()
     private var childObservers: Set<AnyCancellable> = []
@@ -41,12 +42,16 @@ final class AppModel: ObservableObject {
     init() {
         projectStore = ProjectStore()
         recorder = ScreenRecorder()
+        updateChecker = AppUpdateChecker()
         // Nested ObservableObjects do not forward their changes to AppModel,
         // so the views observing AppModel would never refresh. Forward them.
         projectStore.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &childObservers)
         recorder.objectWillChange
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &childObservers)
+        updateChecker.objectWillChange
             .sink { [weak self] _ in self?.objectWillChange.send() }
             .store(in: &childObservers)
         recorder.$isRecording
